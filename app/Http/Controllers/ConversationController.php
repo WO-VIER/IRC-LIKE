@@ -111,18 +111,18 @@ class ConversationController extends Controller
         ]);
 
         // Pour les conversations privées, vérifier qu'il n'y a qu'un seul autre utilisateur
-        if ($request->type === 'private' && count($request->user_ids) !== 1) {
+        if ($request->input('type') === 'private' && count($request->input('user_ids')) !== 1) {
             return response()->json(['message' => 'Une conversation privée doit avoir exactement 2 participants.'], 422);
         }
 
         // Vérifier si une conversation privée existe déjà entre ces utilisateurs
-        if ($request->type === 'private') {
+        if ($request->input('type') === 'private') {
             $existingConversation = Conversation::where('type', 'private')
                 ->whereHas('users', function ($query) use ($request) {
                     $query->where('user_id', Auth::id());
                 })
                 ->whereHas('users', function ($query) use ($request) {
-                    $query->where('user_id', $request->user_ids[0]);
+                    $query->where('user_id', $request->input('user_ids')[0]);
                 })
                 ->first();
 
@@ -132,9 +132,9 @@ class ConversationController extends Controller
         }
 
         $conversation = Conversation::create([
-            'name' => $request->name,
-            'type' => $request->type,
-            'description' => $request->description,
+            'name' => $request->input('name'),
+            'type' => $request->input('type'),
+            'description' => $request->input('description'),
             'created_by' => Auth::id(),
             'last_activity_at' => now(),
         ]);
@@ -146,7 +146,7 @@ class ConversationController extends Controller
         ]);
 
         // Ajouter les autres utilisateurs
-        foreach ($request->user_ids as $userId) {
+        foreach ($request->input('user_ids') as $userId) {
             $conversation->users()->attach($userId, [
                 'role' => 'member',
                 'joined_at' => now(),
@@ -172,11 +172,11 @@ class ConversationController extends Controller
         }
 
         // Vérifier que l'utilisateur n'est pas déjà dans la conversation
-        if ($conversation->users()->where('user_id', $request->user_id)->exists()) {
+        if ($conversation->users()->where('user_id', $request->input('user_id'))->exists()) {
             return response()->json(['message' => 'L\'utilisateur fait déjà partie de cette conversation.'], 422);
         }
 
-        $conversation->users()->attach($request->user_id, [
+        $conversation->users()->attach($request->input('user_id'), [
             'role' => 'member',
             'joined_at' => now(),
         ]);

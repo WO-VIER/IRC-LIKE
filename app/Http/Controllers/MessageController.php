@@ -27,8 +27,8 @@ class MessageController extends Controller
         $message = Message::create([
             'conversation_id' => $conversation->id,
             'user_id' => Auth::id(),
-            'content' => $request->content,
-            'reply_to' => $request->reply_to,
+            'content' => $request->input('content'), // ✅ Utiliser input() au lieu de ->content
+            'reply_to' => $request->input('reply_to'), // ✅ Même chose ici
         ]);
 
         // Mettre à jour l'activité de la conversation
@@ -74,7 +74,7 @@ class MessageController extends Controller
         ]);
 
         $message->update([
-            'content' => $request->content,
+            'content' => $request->input('content'), // ✅ Correction ici aussi
             'is_edited' => true,
             'edited_at' => now(),
         ]);
