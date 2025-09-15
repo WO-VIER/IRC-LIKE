@@ -37,8 +37,6 @@ class MessageController extends Controller
         // Charger les relations pour la réponse
         $message->load(['user', 'replyTo.user']);
 
-        // TODO: Broadcast du message en temps réel
-        // broadcast(new MessageSent($message));
 
         return response()->json([
             'message' => [
@@ -79,8 +77,6 @@ class MessageController extends Controller
             'edited_at' => now(),
         ]);
 
-        // TODO: Broadcast de la modification en temps réel
-        // broadcast(new MessageUpdated($message));
 
         return response()->json(['message' => 'Message modifié avec succès.']);
     }
@@ -99,8 +95,6 @@ class MessageController extends Controller
 
         $message->delete();
 
-        // TODO: Broadcast de la suppression en temps réel
-        // broadcast(new MessageDeleted($message));
 
         return response()->json(['message' => 'Message supprimé avec succès.']);
     }
