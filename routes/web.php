@@ -6,13 +6,18 @@ use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\NotificationController;
 
+// Rediriger la page d'accueil vers les conversations pour les utilisateurs connectés
 Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route('conversations.index');
+    }
     return Inertia::render('Welcome');
 })->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    // Rediriger dashboard vers conversations aussi
     Route::get('dashboard', function () {
-        return Inertia::render('Dashboard');
+        return redirect()->route('conversations.index');
     })->name('dashboard');
 
     // Routes pour les conversations

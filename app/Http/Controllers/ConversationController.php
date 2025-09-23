@@ -44,7 +44,7 @@ class ConversationController extends Controller
                 ];
             });
 
-        return Inertia::render('Chat/Index', [
+        return Inertia::render('Conversations/Index', [
             'conversations' => $conversations,
         ]);
     }
