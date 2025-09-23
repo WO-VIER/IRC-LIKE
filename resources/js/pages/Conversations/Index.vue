@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router, Link } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import { Plus, MessageCircle, Home } from 'lucide-vue-next'
 
 interface User {
@@ -46,16 +46,14 @@ const createConversation = () => {
                 <h1 class="text-3xl font-bold text-gray-900">Conversations</h1>
 
                 <div class="flex items-center space-x-3">
-
-
-                    <!-- Bouton Nouvelle conversation -->
-                    <button
-                        @click="createConversation"
-                        class="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    <!-- Bouton Dashboard -->
+                    <Link
+                        href="/dashboard"
+                        class="flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
                     >
-                        <Plus class="w-5 h-5 mr-2" />
-                        Nouvelle conversation
-                    </button>
+                        <Home class="w-5 h-5 mr-2" />
+                        Dashboard
+                    </Link>
                 </div>
             </div>
 
