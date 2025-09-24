@@ -49,6 +49,34 @@ class ConversationController extends Controller
         ]);
     }
 
+    public function index2()
+    {
+        $conversations = auth()->user()
+            ->conversations()
+            ->with(['users', 'messages' => fn($q) => $q->latest()->take(1)])
+            ->get();
+        return Inertia::render('Conversations/Index', [
+            'conversations' => $conversations
+        ]);
+    }
+
+    public function show2(Conversation $conversation)
+    {
+        if (!$conversation->users->contains(Auth::id())) {
+            abort(403, 'Vous n\'avez pas accès à cette conversation.');
+        }
+
+        $messages = $conversation->messages()
+            ->with('user')
+            ->orderBy('created_at')
+            ->get();
+
+        return Inertia::render('Conversations/Show', [
+            'conversations' => $conversation->load('users'),
+            'messages' => $messages
+        ]);
+    }
+
     /**
      * Afficher une conversation spécifique
      */
