@@ -22,7 +22,10 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['conversation_id', 'user_id']);
+
+            //Pour récuperer les conv d'un user avec la dernière lecture
             $table->index(['user_id', 'last_read_at']);
+            $table->index(['conversation_id', 'joined_at']);
         });
     }
 

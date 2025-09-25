@@ -21,7 +21,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('dashboard');
 
     // Routes pour les conversations
-    Route::get('conversations', [ConversationController::class, 'index'])->name('conversations.index');
+    Route::get('/conversations', [ConversationController::class, 'index2'])->name('conversations.index');
+    //Route::get('conversations', [ConversationController::class, 'index'])->name('conversations.index');
     Route::get('conversations/create', [ConversationController::class, 'create'])->name('conversations.create');
     Route::post('conversations', [ConversationController::class, 'store'])->name('conversations.store');
     Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->name('conversations.show');
@@ -45,5 +46,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unread-count');
 });
 
-require __DIR__.'/settings.php';
-require __DIR__.'/auth.php';
+require __DIR__ . '/settings.php';
+require __DIR__ . '/auth.php';

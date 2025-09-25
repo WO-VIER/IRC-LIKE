@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Testing\Fluent\Concerns\Has;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
 class User extends Authenticatable
@@ -55,9 +56,8 @@ class User extends Authenticatable
     public function conversations(): BelongsToMany
     {
         return $this->belongsToMany(Conversation::class, 'conversation_users')
-                    ->withPivot(['role', 'joined_at', 'last_read_at', 'is_muted'])
-                    ->withTimestamps()
-                    ->orderBy('last_activity_at', 'desc');
+            ->withPivot(['joined_at', 'last_read_at', 'role', 'is_muted'])
+            ->withTimestamps();
     }
 
     /**
@@ -90,5 +90,26 @@ class User extends Authenticatable
     public function unreadNotifications(): HasMany
     {
         return $this->hasMany(Notification::class)->whereNull('read_at');
+    }
+
+    public function getUnreadNotificationsCount(): int
+    {
+        return $this->notifications()->where('read_at', null)->count();
+    }
+
+    public function getUnreadMessagesInConversation(Conversation $conversation): int
+    {
+        $lastRead = $this->conversations()
+            ->where('conversation_id', $conversation->id)
+            ->first()?->pivot?->last_read_at;
+
+        if (!$lastRead) {
+            return $conversation->messages()->count();
+        }
+
+        return $conversation->messages()
+            ->where('created_at', '>', $lastRead)
+            ->where('user_id', '!=', $this->id)
+            ->count();
     }
 }

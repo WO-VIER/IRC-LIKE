@@ -22,6 +22,7 @@ return new class extends Migration
             $table->timestamp('edited_at')->nullable();
             $table->timestamps();
 
+            //Pour récuperer les messages d'une conv rapidement
             $table->index(['conversation_id', 'created_at']);
             $table->index(['user_id', 'created_at']);
         });

@@ -38,8 +38,8 @@ class Conversation extends Model
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'conversation_users')
-                    ->withPivot(['role', 'joined_at', 'last_read_at', 'is_muted'])
-                    ->withTimestamps();
+            ->withPivot(['joined_at', 'last_read_at', 'role', 'is_muted'])
+            ->withTimestamps();
     }
 
     /**
@@ -74,6 +74,18 @@ class Conversation extends Model
         return $query->where('type', 'group');
     }
 
+    public function scopeForUser($query, $userId)
+    {
+        return $query->whereHas('users', function ($q) use ($userId) {
+            $q->where('user_id', $userId);
+        });
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->orderBy('last_activity_at', 'desc');
+    }
+
     /**
      * Vérifier si c'est une conversation privée
      */
@@ -88,5 +100,10 @@ class Conversation extends Model
     public function isGroup(): bool
     {
         return $this->type === 'group';
+    }
+
+    public function updateActivity(): void
+    {
+        $this->update(['last_activity_at' => now()]);
     }
 }
