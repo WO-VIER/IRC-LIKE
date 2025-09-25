@@ -59,7 +59,7 @@ const filteredConversations = computed(() => {
 })
 
 const sortedConversations = computed(() => {
-    return props.conversations.sort((a, b) =>
+    return [...props.conversations].sort((a, b) =>
         new Date(b.last_activity_at).getTime() - new Date(a.last_activity_at).getTime()
     )
 })
