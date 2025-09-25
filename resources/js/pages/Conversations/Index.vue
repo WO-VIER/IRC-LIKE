@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue'
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
     Hash,
     Users,
@@ -80,7 +81,13 @@ const getConversationName = (conversation: Conversation) => {
         return conversation.name || 'Groupe sans nom'
     }
 
-    const otherUser = conversation.users.find(u => u.id !== currentUser.value?.id)
+    // Filtrer les utilisateurs uniques et exclure l'utilisateur actuel
+    const uniqueUsers = conversation.users.filter((user, index, self) =>
+        user.id !== currentUser.value?.id &&
+        self.findIndex(u => u.id === user.id) === index
+    )
+
+    const otherUser = uniqueUsers[0]
     return otherUser?.name || 'Utilisateur inconnu'
 }
 

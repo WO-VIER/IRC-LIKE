@@ -56,4 +56,29 @@ class ConversationUser extends Model
     {
         return $this->role === 'moderator';
     }
+
+    /**
+     * Nettoyer les doublons pour une conversation donnée
+     */
+    public static function removeDuplicates($conversationId)
+    {
+        $duplicates = self::select('user_id', 'conversation_id')
+            ->where('conversation_id', $conversationId)
+            ->groupBy('user_id', 'conversation_id')
+            ->havingRaw('COUNT(*) > 1')
+            ->get();
+
+        foreach ($duplicates as $duplicate) {
+            // Garder seulement le premier enregistrement et supprimer les autres
+            $records = self::where('user_id', $duplicate->user_id)
+                ->where('conversation_id', $duplicate->conversation_id)
+                ->orderBy('id')
+                ->get();
+
+            // Supprimer tous sauf le premier
+            $records->skip(1)->each(function ($record) {
+                $record->delete();
+            });
+        }
+    }
 }

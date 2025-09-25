@@ -25,20 +25,24 @@ class ConversationController extends Controller
                     'type' => $conversation->type,
                     'description' => $conversation->description,
                     'last_activity_at' => $conversation->last_activity_at,
-                    'users' => $conversation->users->map(function ($user) {
-                        return [
-                            'id' => $user->id,
-                            'name' => $user->name,
-                            'email' => $user->email,
-                            'role' => $user->pivot->role,
-                            'is_muted' => $user->pivot->is_muted,
-                            'last_read_at' => $user->pivot->last_read_at,
-                        ];
-                    }),
+                    'users' => $conversation->users
+                        ->unique('id') // Éliminer les doublons par ID utilisateur
+                        ->map(function ($user) {
+                            return [
+                                'id' => $user->id,
+                                'name' => $user->name,
+                                'email' => $user->email,
+                                'role' => $user->pivot->role,
+                                'is_muted' => $user->pivot->is_muted,
+                                'last_read_at' => $user->pivot->last_read_at,
+                            ];
+                        })->values(), // Réindexer après unique()
                     'last_message' => $conversation->lastMessage->first() ? [
                         'id' => $conversation->lastMessage->first()->id,
                         'content' => $conversation->lastMessage->first()->content,
-                        'user' => $conversation->lastMessage->first()->user->name,
+                        'user' => $conversation->lastMessage->first()->user ?
+                            $conversation->lastMessage->first()->user->name :
+                            'Utilisateur inconnu',
                         'created_at' => $conversation->lastMessage->first()->created_at,
                     ] : null,
                 ];
@@ -224,5 +228,17 @@ class ConversationController extends Controller
         $conversation->update(['last_activity_at' => now()]);
 
         return redirect()->route('conversations.index');
+    }
+
+    public function create()
+    {
+        // Récupérer tous les utilisateurs sauf l'utilisateur connecté
+        $users = User::where('id', '!=', Auth::id())
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+
+        return Inertia::render('Conversations/Create', [
+            'users' => $users,
+        ]);
     }
 }
