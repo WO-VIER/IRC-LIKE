@@ -93,7 +93,7 @@ class ConversationController extends Controller
 
         $conversation->load(['users', 'messages.user', 'messages.replyTo.user']);
 
-        return Inertia::render('Chat/Show', [
+        return Inertia::render('Conversations/Messages', [
             'conversation' => [
                 'id' => $conversation->id,
                 'name' => $conversation->name,
@@ -159,7 +159,8 @@ class ConversationController extends Controller
                 ->first();
 
             if ($existingConversation) {
-                return redirect()->route('conversations.show', $existingConversation);
+                // Rediriger vers la page Messages au lieu de Show
+                return Inertia::location("/conversations/{$existingConversation->id}");
             }
         }
 
@@ -185,6 +186,7 @@ class ConversationController extends Controller
             ]);
         }
 
+        // Redirection correcte
         return redirect()->route('conversations.show', $conversation);
     }
 

@@ -86,11 +86,11 @@ const removeSelectedUser = (userId: number) => {
 
 const createConversation = () => {
     form.user_ids = selectedUsers.value
-    form.post(route('conversations.store'))
+    form.post('/conversations')
 }
 
 const goBack = () => {
-    router.get(route('conversations.index'))
+    router.get('/conversations')
 }
 
 const onTypeChange = (event: Event) => {

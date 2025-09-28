@@ -6,6 +6,7 @@ use App\Models\Conversation;
 use App\Models\Message;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class MessageController extends Controller
 {
@@ -27,33 +28,42 @@ class MessageController extends Controller
         $message = Message::create([
             'conversation_id' => $conversation->id,
             'user_id' => Auth::id(),
-            'content' => $request->input('content'), // ✅ Utiliser input() au lieu de ->content
-            'reply_to' => $request->input('reply_to'), // ✅ Même chose ici
+            'content' => $request->input('content'),
+            'reply_to' => $request->input('reply_to'),
         ]);
 
         // Mettre à jour l'activité de la conversation
         $conversation->update(['last_activity_at' => now()]);
 
-        // Charger les relations pour la réponse
-        $message->load(['user', 'replyTo.user']);
+        $conversation->load(['users', 'messages.user']);
 
-
-        return response()->json([
-            'message' => [
-                'id' => $message->id,
-                'content' => $message->content,
-                'type' => $message->type,
-                'created_at' => $message->created_at,
-                'user' => [
-                    'id' => $message->user->id,
-                    'name' => $message->user->name,
-                ],
-                'reply_to' => $message->replyTo ? [
-                    'id' => $message->replyTo->id,
-                    'content' => $message->replyTo->content,
-                    'user' => $message->replyTo->user->name,
-                ] : null,
-            ]
+        return Inertia::render('Conversations/Messages', [
+            'conversation' => [
+                'id' => $conversation->id,
+                'name' => $conversation->name,
+                'type' => $conversation->type,
+                'description' => $conversation->description,
+                'users' => $conversation->users->map(function ($user) {
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'role' => $user->pivot->role,
+                    ];
+                }),
+                'messages' => $conversation->messages->map(function ($message) {
+                    return [
+                        'id' => $message->id,
+                        'content' => $message->content,
+                        'created_at' => $message->created_at,
+                        'updated_at' => $message->updated_at,
+                        'user' => [
+                            'id' => $message->user->id,
+                            'name' => $message->user->name,
+                        ],
+                    ];
+                }),
+            ],
         ]);
     }
 
@@ -72,7 +82,7 @@ class MessageController extends Controller
         ]);
 
         $message->update([
-            'content' => $request->input('content'), // ✅ Correction ici aussi
+            'content' => $request->input('content'),
             'is_edited' => true,
             'edited_at' => now(),
         ]);

@@ -21,10 +21,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('dashboard');
 
     // Routes pour les conversations
-    Route::get('/conversations', [ConversationController::class, 'index'])->name('conversations.index');
+    Route::get('/conversations', [ConversationController::class, 'index2'])->name('conversations.index');
     Route::get('conversations/create', [ConversationController::class, 'create'])->name('conversations.create');
     Route::post('conversations', [ConversationController::class, 'store'])->name('conversations.store');
-    Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->name('conversations.show');
+    Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->name('conversations.show'); // Cette route doit pointer vers la méthode show qui rend Messages.vue
     Route::put('conversations/{conversation}', [ConversationController::class, 'update'])->name('conversations.update');
     Route::delete('conversations/{conversation}', [ConversationController::class, 'destroy'])->name('conversations.destroy');
 
