@@ -14,10 +14,20 @@ permissions:
   contents: write
 
 jobs:
-  quality:
+  ci:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, intl, sqlite3, pdo_sqlite, fileinfo, dom
+          tools: composer:v2
+          coverage: none
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -41,5 +51,18 @@ jobs:
       # - name: Commit Changes
       #   uses: stefanzweifel/git-auto-commit-action@v5
       #   with:
-      #     commit_message: fix code style
-      #     commit_options: '--no-verify'
+      - name: Copy Environment File (SQLite)
+        run: |
+          cp .env.example .env
+          php -r "file_put_contents('.env', preg_replace('/^DB_CONNECTION=.*/m','DB_CONNECTION=sqlite', file_get_contents('.env')));"
+          php -r "file_put_contents('.env', preg_replace('/^DB_DATABASE=.*/m','DB_DATABASE=' . __DIR__ . '/database/database.sqlite', file_get_contents('.env')));"
+
+      - name: Prepare SQLite and migrate
+        run: |
+          mkdir -p database
+          : > database/database.sqlite
+          php artisan key:generate
+          php artisan migrate --force
+
+      - name: Tests
+        run: ./vendor/bin/pest -q
