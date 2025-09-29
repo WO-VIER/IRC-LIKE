@@ -118,6 +118,7 @@ const selectConversation = (conversationId: number) => {
 }
 
 const createNewConversation = () => {
+    console.log(' createNewConversation called')
     router.get('/conversations/create')
 }
 </script>

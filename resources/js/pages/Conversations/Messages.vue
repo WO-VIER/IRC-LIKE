@@ -146,6 +146,7 @@ const scrollToBottom = () => {
 }
 
 const goBack = () => {
+    console.log(' goBack from Messages called')
     router.get('/conversations')
 }
 

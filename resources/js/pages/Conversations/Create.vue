@@ -84,13 +84,15 @@ const removeSelectedUser = (userId: number) => {
     }
 }
 
-const createConversation = () => {
-    form.user_ids = selectedUsers.value
-    form.post('/conversations')
+const goBack = () => {
+    console.log(' goBack called')
+    router.get('/conversations')
 }
 
-const goBack = () => {
-    router.get('/conversations')
+const createConversation = () => {
+    console.log(' createConversation called')
+    form.user_ids = selectedUsers.value
+    form.post('/conversations')
 }
 
 const onTypeChange = (event: Event) => {
