@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use Barryvdh\Debugbar\Facades\Debugbar;
 
 class ConversationController extends Controller
 {
@@ -24,9 +25,9 @@ class ConversationController extends Controller
                     'name' => $conversation->name,
                     'type' => $conversation->type,
                     'description' => $conversation->description,
-                    'last_activity_at' => $conversation->last_activity_at,
+                    'last_activity_at' => $conversation->last_activity_at->toISOString(),
                     'users' => $conversation->users
-                        ->unique('id') // Éliminer les doublons par ID utilisateur
+                        ->unique('id')
                         ->map(function ($user) {
                             return [
                                 'id' => $user->id,
@@ -34,22 +35,26 @@ class ConversationController extends Controller
                                 'email' => $user->email,
                                 'role' => $user->pivot->role,
                                 'is_muted' => $user->pivot->is_muted,
-                                'last_read_at' => $user->pivot->last_read_at,
+                                'last_read_at' => $user->pivot->last_read_at
+                                    ? \Carbon\Carbon::parse($user->pivot->last_read_at)->toISOString()
+                                    : null,
                             ];
-                        })->values(), // Réindexer après unique()
+                        })->values()->toArray(), // Réindexer après unique()
                     'last_message' => $conversation->lastMessage->first() ? [
                         'id' => $conversation->lastMessage->first()->id,
                         'content' => $conversation->lastMessage->first()->content,
-                        'user' => $conversation->lastMessage->first()->user ?
-                            $conversation->lastMessage->first()->user->name :
-                            'Utilisateur inconnu',
-                        'created_at' => $conversation->lastMessage->first()->created_at,
+                        'user' => $conversation->lastMessage->first()->user->name,
+                        'user_id' => $conversation->lastMessage->first()->user_id,
+                        'created_at' => $conversation->lastMessage->first()->created_at->toISOString(),
                     ] : null,
                 ];
             });
 
+        Debugbar::info('Conversations props :', $conversations->toArray());
+
         return Inertia::render('Conversations/Index', [
             'conversations' => $conversations,
+            '_refresh' => now()->timestamp,
         ]);
     }
 
@@ -90,6 +95,10 @@ class ConversationController extends Controller
         if (!$conversation->users->contains(Auth::id())) {
             abort(403, 'Vous n\'avez pas accès à cette conversation.');
         }
+
+        $conversation->users()->updateExistingPivot(Auth::id(), [
+            'last_read_at' => now(),
+        ]);
 
         $conversation->load(['users', 'messages.user', 'messages.replyTo.user']);
 

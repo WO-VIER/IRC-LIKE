@@ -146,8 +146,12 @@ const scrollToBottom = () => {
 }
 
 const goBack = () => {
-    console.log(' goBack from Messages called')
-    router.get('/conversations')
+    console.log('Retour à la liste des conversations')
+    router.visit('/conversations', {
+        method: 'get',
+        preserveState: false,
+        preserveScroll: false,
+    })
 }
 
 const handleKeyPress = (event: KeyboardEvent) => {
@@ -164,6 +168,7 @@ onMounted(() => {
 </script>
 
 <template>
+
     <Head title="Messages" />
 
     <AppLayout>
@@ -183,7 +188,7 @@ onMounted(() => {
                 <!-- Zone pour autres conversations (placeholder pour l'instant) -->
                 <div class="flex-1 p-4">
                     <p class="text-sm text-gray-500 dark:text-gray-400 text-center">
-                        Liste des conversations<br/>
+                        Liste des conversations<br />
                         (à implémenter)
                     </p>
                 </div>
@@ -198,7 +203,7 @@ onMounted(() => {
                             <!-- Avatar/Icône -->
                             <div class="mr-4">
                                 <div v-if="conversation.type === 'group'"
-                                     class="w-12 h-12 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl flex items-center justify-center">
+                                    class="w-12 h-12 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl flex items-center justify-center">
                                     <Hash class="h-6 w-6 text-white" />
                                 </div>
                                 <Avatar v-else class="h-12 w-12">
@@ -243,14 +248,14 @@ onMounted(() => {
                 <!-- Zone des messages -->
                 <div ref="messagesContainer" class="flex-1 overflow-y-auto p-6 space-y-4">
                     <!-- Messages -->
-                    <div v-for="message in conversation.messages" :key="message.id"
-                         class="flex" :class="{ 'justify-end': isMyMessage(message) }">
+                    <div v-for="message in conversation.messages" :key="message.id" class="flex"
+                        :class="{ 'justify-end': isMyMessage(message) }">
 
-                        <div class="flex max-w-xs lg:max-w-md"
-                             :class="{ 'flex-row-reverse': isMyMessage(message) }">
+                        <div class="flex max-w-xs lg:max-w-md" :class="{ 'flex-row-reverse': isMyMessage(message) }">
 
                             <!-- Avatar -->
-                            <div class="flex-shrink-0" :class="{ 'ml-3': isMyMessage(message), 'mr-3': !isMyMessage(message) }">
+                            <div class="flex-shrink-0"
+                                :class="{ 'ml-3': isMyMessage(message), 'mr-3': !isMyMessage(message) }">
                                 <Avatar class="h-8 w-8">
                                     <AvatarFallback :class="isMyMessage(message)
                                         ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
@@ -263,18 +268,18 @@ onMounted(() => {
                             <!-- Bulle de message -->
                             <div>
                                 <div class="flex items-center mb-1"
-                                     :class="{ 'flex-row-reverse': isMyMessage(message) }">
+                                    :class="{ 'flex-row-reverse': isMyMessage(message) }">
                                     <span class="text-sm font-medium text-gray-900 dark:text-white">
                                         {{ message.user.name }}
                                     </span>
                                     <span class="text-xs text-gray-500 dark:text-gray-400"
-                                          :class="{ 'mr-2': isMyMessage(message), 'ml-2': !isMyMessage(message) }">
+                                        :class="{ 'mr-2': isMyMessage(message), 'ml-2': !isMyMessage(message) }">
                                         {{ formatMessageTime(message.created_at) }}
                                     </span>
                                 </div>
 
                                 <div class="px-4 py-2 rounded-2xl"
-                                     :class="isMyMessage(message)
+                                    :class="isMyMessage(message)
                                         ? 'bg-blue-600 text-white'
                                         : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600'">
                                     <p class="text-sm whitespace-pre-wrap">{{ message.content }}</p>
@@ -285,7 +290,8 @@ onMounted(() => {
 
                     <!-- État vide -->
                     <div v-if="conversation.messages.length === 0" class="text-center py-12">
-                        <div class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <div
+                            class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                             <MessageCircle class="h-8 w-8 text-gray-400" />
                         </div>
                         <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
@@ -313,14 +319,10 @@ onMounted(() => {
                         <!-- Zone de saisie -->
                         <div class="flex-1">
                             <div class="relative">
-                                <textarea
-                                    v-model="messageContent"
-                                    @keydown="handleKeyPress"
-                                    placeholder="Tapez votre message..."
-                                    rows="1"
+                                <textarea v-model="messageContent" @keydown="handleKeyPress"
+                                    placeholder="Tapez votre message..." rows="1"
                                     class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-2xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                                    :class="{ 'border-red-500': form.errors.content }"
-                                ></textarea>
+                                    :class="{ 'border-red-500': form.errors.content }"></textarea>
                             </div>
 
                             <p v-if="form.errors.content" class="text-red-500 text-xs mt-1">
@@ -329,11 +331,8 @@ onMounted(() => {
                         </div>
 
                         <!-- Bouton d'envoi -->
-                        <Button
-                            @click="sendMessage"
-                            :disabled="!messageContent.trim() || form.processing"
-                            class="rounded-2xl px-6"
-                        >
+                        <Button @click="sendMessage" :disabled="!messageContent.trim() || form.processing"
+                            class="rounded-2xl px-6">
                             <Send class="h-4 w-4" />
                         </Button>
                     </div>

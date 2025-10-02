@@ -66,6 +66,19 @@ class ChatSeeder extends Seeder
             [$users[0], $users[1]], // Alice & Bob
             [$users[2], $users[3]], // Charlie & Diana
         ])->map(function ($pair) {
+            // ✅ Vérifier si une conversation privée existe déjà
+            $existingConversation = Conversation::where('type', 'private')
+                ->whereHas('users', fn($q) => $q->where('user_id', $pair[0]->id))
+                ->whereHas('users', fn($q) => $q->where('user_id', $pair[1]->id))
+                ->whereDoesntHave('users', function ($q) use ($pair) {
+                    $q->whereNotIn('user_id', [$pair[0]->id, $pair[1]->id]);
+                })
+                ->first();
+
+            if ($existingConversation) {
+                return $existingConversation;
+            }
+
             $conversation = Conversation::create([
                 'type' => 'private',
                 'created_by' => $pair[0]->id,

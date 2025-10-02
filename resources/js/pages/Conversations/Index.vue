@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -15,6 +15,7 @@ import {
     MessageCircle,
     Search
 } from 'lucide-vue-next'
+import conversations from '@/routes/conversations';
 
 interface User {
     id: number
@@ -29,6 +30,7 @@ interface Message {
     id: number
     content: string
     user: string
+    user_id?: number
     created_at: string
 }
 
@@ -114,13 +116,63 @@ const formatMessageTime = (dateString: string) => {
 }
 
 const selectConversation = (conversationId: number) => {
-    router.get(`/conversations/${conversationId}`)
+
+    router.visit(`/conversations/${conversationId}`, {
+        preserveState: false,
+        onFinish: () => {
+            // Quand on revient sur /conversations, recharger les données
+            console.log('Conversation visitée, données rechargées')
+        }
+    })
 }
 
 const createNewConversation = () => {
     console.log(' createNewConversation called')
     router.get('/conversations/create')
 }
+
+const hasUnreadMessages = (conversation: Conversation): boolean => {
+    if (!conversation.last_message) {
+        console.log(`[${conversation.id}] Pas de dernier message`)
+        return false
+    }
+
+    console.log(`[${conversation.id}] Dernier message:`, {
+        user_id: conversation.last_message.user_id,
+        currentUserId: currentUser.value?.id,
+        isMyMessage: conversation.last_message.user_id === currentUser.value?.id
+    })
+
+    // Si c'est mon message, pas de badge
+    if (conversation.last_message.user_id === currentUser.value?.id) {
+        console.log(`[${conversation.id}] C'est mon message, pas de badge`)
+        return false
+    }
+
+    const currentUserInConv = conversation.users.find(u => u.id === currentUser.value?.id)
+
+    if (!currentUserInConv) {
+        console.log(`[${conversation.id}] User pas trouvé dans la conv`)
+        return true
+    }
+
+    if (!currentUserInConv.last_read_at) {
+        console.log(`[${conversation.id}] Jamais lu`)
+        return true
+    }
+
+    const lastRead = new Date(currentUserInConv.last_read_at)
+    const lastMessageDate = new Date(conversation.last_message.created_at)
+
+    console.log(`[${conversation.id}] Dates:`, {
+        lastRead: lastRead.toISOString(),
+        lastMessage: lastMessageDate.toISOString(),
+        isUnread: lastMessageDate > lastRead
+    })
+
+    return lastMessageDate > lastRead
+}
+
 </script>
 
 <template>
@@ -146,7 +198,7 @@ const createNewConversation = () => {
                     <div class="relative">
                         <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input v-model="searchTerm" placeholder="Rechercher une conversation..."
-                               class="pl-10 bg-gray-100 dark:bg-gray-700 border-0" />
+                            class="pl-10 bg-gray-100 dark:bg-gray-700 border-0" />
                     </div>
                 </div>
 
@@ -168,8 +220,8 @@ const createNewConversation = () => {
 
                             <div class="space-y-1">
                                 <div v-for="conversation in privateConversations" :key="conversation.id"
-                                     class="flex items-center p-3 mx-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 group"
-                                     @click="selectConversation(conversation.id)">
+                                    class="flex items-center p-3 mx-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 group"
+                                    @click="selectConversation(conversation.id)">
                                     <div class="relative">
                                         <Avatar class="h-10 w-10">
                                             <AvatarFallback
@@ -185,26 +237,26 @@ const createNewConversation = () => {
 
                                     <div class="ml-3 flex-1 min-w-0">
                                         <div class="flex items-center justify-between">
-                                            <h3
-                                                class="font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                            <h3 class="truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
+                                                :class="hasUnreadMessages(conversation) ? 'font-bold text-gray-900 dark:text-white' : 'font-semibold text-gray-900 dark:text-white'">
                                                 {{ getConversationName(conversation) }}
                                             </h3>
                                             <span v-if="conversation.last_message"
-                                                  class="text-xs text-gray-500 dark:text-gray-400">
+                                                class="text-xs text-gray-500 dark:text-gray-400">
                                                 {{ formatMessageTime(conversation.last_message.created_at) }}
                                             </span>
                                         </div>
 
                                         <p v-if="conversation.last_message"
-                                           class="text-sm text-gray-600 dark:text-gray-400 truncate">
+                                            class="text-sm text-gray-600 dark:text-gray-400 truncate">
                                             {{ conversation.last_message.content }}
                                         </p>
                                         <p v-else class="text-sm text-gray-500 dark:text-gray-500 italic">
                                             Aucun message
                                         </p>
 
-                                        <!-- Badge non lu -->
-                                        <div class="flex items-center mt-1">
+                                        <!-- Badge non lu conditionnel -->
+                                        <div v-if="hasUnreadMessages(conversation)" class="flex items-center mt-1">
                                             <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
                                         </div>
                                     </div>
@@ -227,8 +279,8 @@ const createNewConversation = () => {
 
                             <div class="space-y-1">
                                 <div v-for="conversation in groupConversations" :key="conversation.id"
-                                     class="flex items-center p-3 mx-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 group"
-                                     @click="selectConversation(conversation.id)">
+                                    class="flex items-center p-3 mx-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 group"
+                                    @click="selectConversation(conversation.id)">
                                     <div
                                         class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl mr-3">
                                         <Hash class="h-5 w-5 text-white" />
@@ -241,14 +293,14 @@ const createNewConversation = () => {
                                                 {{ conversation.name }}
                                             </h3>
                                             <span v-if="conversation.last_message"
-                                                  class="text-xs text-gray-500 dark:text-gray-400">
+                                                class="text-xs text-gray-500 dark:text-gray-400">
                                                 {{ formatMessageTime(conversation.last_message.created_at) }}
                                             </span>
                                         </div>
 
                                         <div class="flex items-center justify-between">
-                                            <p v-if="conversation.last_message"
-                                               class="text-sm text-gray-600 dark:text-gray-400 truncate">
+                                            <p v-if="conversation.last_message" class="text-sm truncate"
+                                                :class="hasUnreadMessages(conversation) ? 'text-gray-900 dark:text-white font-semibold' : 'text-gray-600 dark:text-gray-400'">
                                                 <span class="font-medium">{{ conversation.last_message.user }}:</span>
                                                 {{ conversation.last_message.content }}
                                             </p>
@@ -259,13 +311,13 @@ const createNewConversation = () => {
                                             <div class="flex items-center">
                                                 <Users class="h-3 w-3 text-gray-400 mr-1" />
                                                 <span class="text-xs text-gray-500">{{ conversation.users.length
-                                                    }}</span>
+                                                }}</span>
                                             </div>
                                         </div>
 
                                         <!-- Description du groupe -->
                                         <p v-if="conversation.description"
-                                           class="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
+                                            class="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
                                             {{ conversation.description }}
                                         </p>
                                     </div>
@@ -286,7 +338,7 @@ const createNewConversation = () => {
 
                             <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
                                 {{ searchTerm ? 'Essayez avec d\'autres mots-clés'
-                                : 'Commencez une nouvelle conversation' }}
+                                    : 'Commencez une nouvelle conversation' }}
                             </p>
 
                             <Button v-if="!searchTerm" size="sm" @click="createNewConversation">
