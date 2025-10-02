@@ -35,36 +35,8 @@ class MessageController extends Controller
         // Mettre à jour l'activité de la conversation
         $conversation->update(['last_activity_at' => now()]);
 
-        $conversation->load(['users', 'messages.user']);
-
-        return Inertia::render('Conversations/Messages', [
-            'conversation' => [
-                'id' => $conversation->id,
-                'name' => $conversation->name,
-                'type' => $conversation->type,
-                'description' => $conversation->description,
-                'users' => $conversation->users->map(function ($user) {
-                    return [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                        'email' => $user->email,
-                        'role' => $user->pivot->role,
-                    ];
-                }),
-                'messages' => $conversation->messages->map(function ($message) {
-                    return [
-                        'id' => $message->id,
-                        'content' => $message->content,
-                        'created_at' => $message->created_at,
-                        'updated_at' => $message->updated_at,
-                        'user' => [
-                            'id' => $message->user->id,
-                            'name' => $message->user->name,
-                        ],
-                    ];
-                }),
-            ],
-        ]);
+        // Rediriger vers la route GET au lieu de retourner Inertia directement
+        return redirect()->route('conversations.show', $conversation);
     }
 
     /**

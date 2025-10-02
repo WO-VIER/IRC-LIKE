@@ -161,7 +161,6 @@ const handleKeyPress = (event: KeyboardEvent) => {
     }
 }
 
-// Lifecycle
 onMounted(() => {
     scrollToBottom()
 })
