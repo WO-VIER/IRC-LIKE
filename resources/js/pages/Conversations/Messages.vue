@@ -225,22 +225,6 @@ onMounted(() => {
                                 </p>
                             </div>
                         </div>
-
-                        <!-- Actions -->
-                        <div class="flex items-center space-x-2">
-                            <Button size="sm" variant="ghost">
-                                <Phone class="h-4 w-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost">
-                                <Video class="h-4 w-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost">
-                                <Users class="h-4 w-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost">
-                                <MoreVertical class="h-4 w-4" />
-                            </Button>
-                        </div>
                     </div>
                 </div>
 
@@ -305,15 +289,6 @@ onMounted(() => {
                 <!-- Zone de saisie -->
                 <div class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-6">
                     <div class="flex items-end space-x-4">
-                        <!-- Boutons d'actions -->
-                        <div class="flex space-x-2">
-                            <Button size="sm" variant="ghost">
-                                <Paperclip class="h-4 w-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost">
-                                <Smile class="h-4 w-4" />
-                            </Button>
-                        </div>
 
                         <!-- Zone de saisie -->
                         <div class="flex-1">
