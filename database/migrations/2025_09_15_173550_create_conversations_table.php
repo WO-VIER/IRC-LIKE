@@ -16,10 +16,9 @@ return new class extends Migration
             $table->string('name')->nullable(); // Nom pour les groupes, null pour privé
             $table->enum('type', ['private', 'group'])->default('private'); //
             $table->text('description')->nullable();
-            $table->foreignId('created_by')->constrained('users')->onDelete('cascade'); //Si user supprimé, ses conversations aussi mais peut etre possibilité de "Deleted user"
+            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null'); // Modifié
             $table->timestamp('last_activity_at')->nullable();
             $table->timestamps();
-            //$table->index(['type', 'last_activity_at']);
         });
     }
 

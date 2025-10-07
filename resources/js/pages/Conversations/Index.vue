@@ -198,7 +198,7 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
                     <div class="relative">
                         <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input v-model="searchTerm" placeholder="Rechercher une conversation..."
-                            class="pl-10 bg-gray-100 dark:bg-gray-700 border-0" />
+                               class="pl-10 bg-gray-100 dark:bg-gray-700 border-0" />
                     </div>
                 </div>
 
@@ -220,8 +220,8 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
 
                             <div class="space-y-1">
                                 <div v-for="conversation in privateConversations" :key="conversation.id"
-                                    class="flex items-center p-3 mx-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 group"
-                                    @click="selectConversation(conversation.id)">
+                                     class="flex items-center p-3 mx-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 group"
+                                     @click="selectConversation(conversation.id)">
                                     <div class="relative">
                                         <Avatar class="h-10 w-10">
                                             <AvatarFallback
@@ -229,10 +229,6 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
                                                 {{ getAvatarFallback(getConversationName(conversation)) }}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <!-- Indicateur en ligne -->
-                                        <div
-                                            class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 border-2 border-white dark:border-gray-800 rounded-full">
-                                        </div>
                                     </div>
 
                                     <div class="ml-3 flex-1 min-w-0">
@@ -242,23 +238,18 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
                                                 {{ getConversationName(conversation) }}
                                             </h3>
                                             <span v-if="conversation.last_message"
-                                                class="text-xs text-gray-500 dark:text-gray-400">
+                                                  class="text-xs text-gray-500 dark:text-gray-400">
                                                 {{ formatMessageTime(conversation.last_message.created_at) }}
                                             </span>
                                         </div>
 
                                         <p v-if="conversation.last_message"
-                                            class="text-sm text-gray-600 dark:text-gray-400 truncate">
+                                           class="text-sm text-gray-600 dark:text-gray-400 truncate">
                                             {{ conversation.last_message.content }}
                                         </p>
                                         <p v-else class="text-sm text-gray-500 dark:text-gray-500 italic">
                                             Aucun message
                                         </p>
-
-                                        <!-- Badge non lu conditionnel -->
-                                        <div v-if="hasUnreadMessages(conversation)" class="flex items-center mt-1">
-                                            <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -279,8 +270,8 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
 
                             <div class="space-y-1">
                                 <div v-for="conversation in groupConversations" :key="conversation.id"
-                                    class="flex items-center p-3 mx-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 group"
-                                    @click="selectConversation(conversation.id)">
+                                     class="flex items-center p-3 mx-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 group"
+                                     @click="selectConversation(conversation.id)">
                                     <div
                                         class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl mr-3">
                                         <Hash class="h-5 w-5 text-white" />
@@ -293,14 +284,14 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
                                                 {{ conversation.name }}
                                             </h3>
                                             <span v-if="conversation.last_message"
-                                                class="text-xs text-gray-500 dark:text-gray-400">
+                                                  class="text-xs text-gray-500 dark:text-gray-400">
                                                 {{ formatMessageTime(conversation.last_message.created_at) }}
                                             </span>
                                         </div>
 
                                         <div class="flex items-center justify-between">
                                             <p v-if="conversation.last_message" class="text-sm truncate"
-                                                :class="hasUnreadMessages(conversation) ? 'text-gray-900 dark:text-white font-semibold' : 'text-gray-600 dark:text-gray-400'">
+                                               :class="hasUnreadMessages(conversation) ? 'text-gray-900 dark:text-white font-semibold' : 'text-gray-600 dark:text-gray-400'">
                                                 <span class="font-medium">{{ conversation.last_message.user }}:</span>
                                                 {{ conversation.last_message.content }}
                                             </p>
@@ -311,13 +302,13 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
                                             <div class="flex items-center">
                                                 <Users class="h-3 w-3 text-gray-400 mr-1" />
                                                 <span class="text-xs text-gray-500">{{ conversation.users.length
-                                                }}</span>
+                                                    }}</span>
                                             </div>
                                         </div>
 
                                         <!-- Description du groupe -->
                                         <p v-if="conversation.description"
-                                            class="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
+                                           class="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
                                             {{ conversation.description }}
                                         </p>
                                     </div>
@@ -338,7 +329,7 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
 
                             <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
                                 {{ searchTerm ? 'Essayez avec d\'autres mots-clés'
-                                    : 'Commencez une nouvelle conversation' }}
+                                : 'Commencez une nouvelle conversation' }}
                             </p>
 
                             <Button v-if="!searchTerm" size="sm" @click="createNewConversation">
@@ -359,19 +350,13 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
                                     {{ getAvatarFallback(currentUser?.name || '') }}
                                 </AvatarFallback>
                             </Avatar>
-                            <div
-                                class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 border-2 border-white dark:border-gray-800 rounded-full">
-                            </div>
                         </div>
 
                         <div class="ml-3 flex-1 min-w-0">
                             <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">
                                 {{ currentUser?.name }}
                             </p>
-                            <div class="flex items-center">
-                                <div class="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-                                <span class="text-xs text-gray-500 dark:text-gray-400">En ligne</span>
-                            </div>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">En ligne</span>
                         </div>
 
                         <Button size="sm" variant="ghost" class="text-gray-500 hover:text-gray-700">
