@@ -221,7 +221,12 @@ onMounted(() => {
                                     </Badge>
                                 </h2>
                                 <p class="text-sm text-gray-600 dark:text-gray-400">
-                                    {{ conversationDescription }}
+                                    <span v-if="conversation.type === 'group'">
+                                        {{ conversationDescription }}
+                                    </span>
+                                    <span v-else class="text-green-500 dark:text-green-400">
+                                        En ligne
+                                    </span>
                                 </p>
                             </div>
                         </div>
