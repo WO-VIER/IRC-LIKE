@@ -7,15 +7,14 @@ use App\Models\Message;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use App\Events\MessageSent;
 
 class MessageController extends Controller
 {
-    /**
-     * Envoyer un nouveau message
-     */
+
     public function store(Request $request, Conversation $conversation)
     {
-        // Vérifier que l'utilisateur fait partie de la conversation
+
         if (!$conversation->users->contains(Auth::id())) {
             abort(403, 'Vous n\'avez pas accès à cette conversation.');
         }
@@ -27,21 +26,21 @@ class MessageController extends Controller
 
         $message = Message::create([
             'conversation_id' => $conversation->id,
-            'user_id' => Auth::id(),
+            'user_id' => $request->user()->id,
             'content' => $request->input('content'),
-            'reply_to' => $request->input('reply_to'),
         ]);
 
-        // Mettre à jour l'activité de la conversation
-        $conversation->update(['last_activity_at' => now()]);
+    // Charger la relation user AVANT de broadcaster
+    $message->load('user');
 
-        // Rediriger vers la route GET au lieu de retourner Inertia directement
-        return redirect()->route('conversations.show', $conversation);
+    broadcast(new MessageSent($message))->toOthers();
+
+    $conversation->update(['last_activity_at' => now()]);
+
+    return back();
     }
 
-    /**
-     * Modifier un message
-     */
+
     public function update(Request $request, Message $message)
     {
         // Vérifier que l'utilisateur est l'auteur du message

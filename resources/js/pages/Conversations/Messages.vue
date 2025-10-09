@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Head, router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -44,6 +44,12 @@ const { auth } = usePage().props as any
 const messageContent = ref('')
 const messagesContainer = ref<HTMLElement>()
 const showMembersList = ref(true)
+
+// 🔥 Liste locale des messages (réactive)
+const localMessages = ref<Message[]>([...props.conversation.messages])
+
+// 🔥 Référence au channel pour le cleanup
+let echoChannel: any = null
 
 const form = useForm({
     content: ''
@@ -158,8 +164,73 @@ const toggleMembersList = () => {
     showMembersList.value = !showMembersList.value
 }
 
+// 🔥 LIFECYCLE HOOKS
 onMounted(() => {
+    console.log('🎬 Component mounted, conversation ID:', props.conversation.id)
     scrollToBottom()
+
+    const channelName = `conversation.${props.conversation.id}`
+    console.log('🔌 Connexion au canal:', channelName)
+
+    echoChannel = window.Echo.join(channelName)
+        .listen('.MessageSent', (event: any) => {
+            console.log('✅ ÉVÉNEMENT REÇU (.MessageSent):', event)
+            console.log('📦 Structure complète:', JSON.stringify(event, null, 2))
+
+            // 🔥 CORRECTION : Utiliser event.message au lieu de event
+            if (!event.message) {
+                console.error('❌ Pas de propriété message dans l\'événement:', event)
+                return
+            }
+
+            if (!event.message.user) {
+                console.error('❌ Pas de propriété user dans le message:', event.message)
+                return
+            }
+
+            // Vérifier que le message n'est pas déjà dans la liste
+            const messageExists = localMessages.value.some(m => m.id === event.message.id)
+
+            if (!messageExists) {
+                console.log('➕ Ajout du nouveau message:', event.message)
+                localMessages.value.push(event.message)
+                scrollToBottom()
+            } else {
+                console.log('⚠️ Message déjà présent, ignoré')
+            }
+        })
+        .error((error: any) => {
+            console.error('❌ ERREUR Echo:', error)
+        })
+        .here((users: any) => {
+            console.log('👥 Utilisateurs présents:', users)
+        })
+        .joining((user: any) => {
+            console.log('➕ Utilisateur rejoint:', user)
+        })
+        .leaving((user: any) => {
+            console.log('➖ Utilisateur quitte:', user)
+        })
+
+    console.log('✅ Canal rejoint')
+
+    // Debug global Pusher
+    if (echoChannel.subscription?.bind_global) {
+        echoChannel.subscription.bind_global((eventName: string, data: any) => {
+            console.log('🔔 Événement Pusher brut:', eventName, data)
+        })
+    }
+})
+
+// 🔥 CLEANUP au démontage du composant
+onBeforeUnmount(() => {
+    console.log('🧹 Nettoyage du canal Echo')
+
+    if (echoChannel) {
+        const channelName = `conversation.${props.conversation.id}`
+        window.Echo.leave(channelName)
+        echoChannel = null
+    }
 })
 </script>
 
@@ -170,7 +241,6 @@ onMounted(() => {
         <div class="flex h-[calc(100vh-4rem)] bg-gray-50 dark:bg-gray-900">
             <!-- Sidebar conversations -->
             <div class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-                <!-- Header sidebar -->
                 <div class="p-4 border-b border-gray-200 dark:border-gray-700">
                     <div class="flex items-center justify-between">
                         <h1 class="text-lg font-bold text-gray-900 dark:text-white">Messages</h1>
@@ -180,7 +250,6 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <!-- Zone pour autres conversations -->
                 <div class="flex-1 p-4">
                     <p class="text-sm text-gray-500 dark:text-gray-400 text-center">
                         Liste des conversations<br />
@@ -195,7 +264,6 @@ onMounted(() => {
                 <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center">
-                            <!-- Avatar/Icône -->
                             <div class="mr-4">
                                 <div v-if="conversation.type === 'group'"
                                      class="w-12 h-12 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl flex items-center justify-center">
@@ -208,7 +276,6 @@ onMounted(() => {
                                 </Avatar>
                             </div>
 
-                            <!-- Informations -->
                             <div>
                                 <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center">
                                     {{ conversationName }}
@@ -227,7 +294,6 @@ onMounted(() => {
                             </div>
                         </div>
 
-                        <!-- Bouton pour afficher/cacher les membres (groupes uniquement) -->
                         <Button v-if="conversation.type === 'group'"
                                 size="sm"
                                 variant="ghost"
@@ -241,14 +307,13 @@ onMounted(() => {
                 <div class="flex flex-1 overflow-hidden">
                     <!-- Zone des messages -->
                     <div class="flex-1 flex flex-col">
+                        <!-- 🔥 CHANGEMENT : Utiliser localMessages -->
                         <div ref="messagesContainer" class="flex-1 overflow-y-auto p-6 space-y-4">
-                            <!-- Messages -->
-                            <div v-for="message in conversation.messages" :key="message.id" class="flex"
+                            <div v-for="message in localMessages" :key="message.id" class="flex"
                                  :class="{ 'justify-end': isMyMessage(message) }">
 
                                 <div class="flex max-w-xs lg:max-w-md" :class="{ 'flex-row-reverse': isMyMessage(message) }">
 
-                                    <!-- Avatar -->
                                     <div class="flex-shrink-0"
                                          :class="{ 'ml-3': isMyMessage(message), 'mr-3': !isMyMessage(message) }">
                                         <Avatar class="h-8 w-8">
@@ -260,7 +325,6 @@ onMounted(() => {
                                         </Avatar>
                                     </div>
 
-                                    <!-- Bulle de message -->
                                     <div>
                                         <div class="flex items-center mb-1"
                                              :class="{ 'flex-row-reverse': isMyMessage(message) }">
@@ -282,7 +346,8 @@ onMounted(() => {
                                     </div>
                                 </div>
                             </div>
-                            <div v-if="conversation.messages.length === 0" class="text-center py-12">
+
+                            <div v-if="localMessages.length === 0" class="text-center py-12">
                                 <div
                                     class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                                     <MessageCircle class="h-8 w-8 text-gray-400" />
@@ -299,7 +364,6 @@ onMounted(() => {
                         <!-- Zone de saisie -->
                         <div class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-6">
                             <div class="flex items-end space-x-4">
-                                <!-- Zone de saisie -->
                                 <div class="flex-1">
                                     <div class="relative">
                                         <textarea v-model="messageContent" @keydown="handleKeyPress"
@@ -313,7 +377,6 @@ onMounted(() => {
                                     </p>
                                 </div>
 
-                                <!-- Bouton d'envoi -->
                                 <Button @click="sendMessage" :disabled="!messageContent.trim() || form.processing"
                                         class="rounded-2xl px-6">
                                     <Send class="h-4 w-4" />
@@ -331,10 +394,9 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <!-- Sidebar membres (groupes uniquement) -->
+                    <!-- Sidebar membres -->
                     <div v-if="conversation.type === 'group' && showMembersList"
                          class="w-64 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col">
-                        <!-- Header membres -->
                         <div class="p-4 border-b border-gray-200 dark:border-gray-700">
                             <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center">
                                 <Users class="h-4 w-4 mr-2" />
@@ -342,7 +404,6 @@ onMounted(() => {
                             </h3>
                         </div>
 
-                        <!-- Liste des membres -->
                         <div class="flex-1 overflow-y-auto p-3">
                             <div class="space-y-2">
                                 <div v-for="user in conversation.users" :key="user.id"

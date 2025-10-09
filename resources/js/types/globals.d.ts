@@ -17,6 +17,18 @@ declare module '@inertiajs/core' {
     interface PageProps extends InertiaPageProps, AppPageProps {}
 }
 
+import type Echo from 'laravel-echo'
+import type Pusher from 'pusher-js'
+
+declare global {
+    interface Window {
+        Pusher: typeof Pusher
+        Echo: Echo
+    }
+}
+
+export {}
+
 declare module 'vue' {
     interface ComponentCustomProperties {
         $inertia: typeof Router;
