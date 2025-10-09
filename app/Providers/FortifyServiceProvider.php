@@ -8,20 +8,32 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
 use Laravel\Fortify\Fortify;
+use Laravel\Fortify\Contracts\ConfirmPasswordViewResponse;
+use Laravel\Fortify\Contracts\TwoFactorChallengeViewResponse;
 
 class FortifyServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
-        //
+        $this->app->singleton(ConfirmPasswordViewResponse::class, function () {
+            return new class implements ConfirmPasswordViewResponse {
+                public function toResponse($request)
+                {
+                    return Inertia::render('auth/ConfirmPassword');
+                }
+            };
+        });
+
+        $this->app->singleton(TwoFactorChallengeViewResponse::class, function () {
+            return new class implements TwoFactorChallengeViewResponse {
+                public function toResponse($request)
+                {
+                    return Inertia::render('auth/TwoFactorChallenge');
+                }
+            };
+        });
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
         Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/TwoFactorChallenge'));
