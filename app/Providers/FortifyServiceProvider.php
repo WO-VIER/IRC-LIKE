@@ -13,8 +13,12 @@ use Laravel\Fortify\Contracts\TwoFactorChallengeViewResponse;
 
 class FortifyServiceProvider extends ServiceProvider
 {
+    /**
+     * Register any application services.
+     */
     public function register(): void
     {
+        // Bind les contracts pour satisfaire les tests
         $this->app->singleton(ConfirmPasswordViewResponse::class, function () {
             return new class implements ConfirmPasswordViewResponse {
                 public function toResponse($request)
@@ -34,6 +38,9 @@ class FortifyServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Bootstrap any application services.
+     */
     public function boot(): void
     {
         Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/TwoFactorChallenge'));
