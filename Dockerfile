@@ -1,37 +1,51 @@
-# Étape 1 : build front
-FROM node:18 AS build
+# ============================
+# Étape 1 : Build front avec Node.js 20
+# ============================
+FROM node:20.19.0 AS build
 WORKDIR /app
-COPY . .
+
+# Copier les fichiers nécessaires pour npm
+COPY package*.json vite.config.* ./
 RUN npm install
+
+# Copier le reste des fichiers
+COPY . .
+
+# Builder le front
 RUN npm run build
 
-# Étape 2 : PHP + SQLite
-FROM php:8.2-fpm
+# ============================
+# Étape 2 : Laravel + PHP 8.2 + SQLite
+# ============================
+FROM php:8.2-cli
 
-# Installe dépendances système et extensions PHP
+# Installer dépendances système + SQLite + Composer
 RUN apt-get update && apt-get install -y \
     libzip-dev zip unzip sqlite3 libsqlite3-dev \
     && docker-php-ext-install pdo pdo_sqlite
 
-# Installe Composer
+# Installer Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Copie le projet Laravel
+# Copier tout le projet Laravel
 COPY . .
 
-# Copie le build front
+# Copier les fichiers du front compilé
 COPY --from=build /app/public /var/www/html/public
 
-# Installe dépendances Laravel
+# Installer les dépendances PHP
 RUN composer install --no-dev --optimize-autoloader
-RUN cp .env.example .env
-RUN php artisan key:generate
-RUN mkdir -p database && touch database/database.sqlite
-RUN chown -R www-data:www-data /var/www/html
 
+# Générer .env et clé d’application
+RUN cp .env.example .env && php artisan key:generate
+
+# Créer la base SQLite
+RUN mkdir -p database && touch database/database.sqlite
+
+# Exposer le port
 EXPOSE 8080
 
-# Lancer les migrations et servir l'app
+# Lancer migrations + serveur Laravel
 CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8080
