@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Head, router, useForm, usePage } from '@inertiajs/vue3'
+import { toast } from 'vue-sonner'
 import AppLayout from '@/layouts/AppLayout.vue'
+import ConversationSidebar from '@/components/ConversationSidebar.vue'
+import { useUnreadMessages } from '@/composables/useUnreadMessages'
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
-    ArrowLeft,
     Hash,
     MessageCircle,
     Send,
@@ -27,6 +29,16 @@ interface Message {
     updated_at: string
 }
 
+interface ConversationSidebarType {
+    id: number
+    name: string | null
+    type: string
+    users: User[]
+    last_message?: any
+    last_activity_at: string
+    unread_count: number
+}
+
 interface Conversation {
     id: number
     name: string | null
@@ -38,31 +50,28 @@ interface Conversation {
 
 const props = defineProps<{
     conversation: Conversation
+    conversations: ConversationSidebarType[]
 }>()
 
 const { auth } = usePage().props as any
 const messageContent = ref('')
 const messagesContainer = ref<HTMLElement>()
 const showMembersList = ref(true)
-
-// 🔥 Liste locale des messages (réactive)
 const localMessages = ref<Message[]>([...props.conversation.messages])
+const { markConversationAsRead } = useUnreadMessages()
 
-// 🔥 Référence au channel pour le cleanup
 let echoChannel: any = null
 
 const form = useForm({
     content: ''
 })
 
-// Computed
 const currentUser = computed(() => auth.user)
 
 const conversationName = computed(() => {
     if (props.conversation.type === 'group') {
         return props.conversation.name || 'Groupe sans nom'
     }
-
     const otherUser = props.conversation.users.find(user => user.id !== currentUser.value?.id)
     return otherUser?.name || 'Utilisateur inconnu'
 })
@@ -71,12 +80,10 @@ const conversationDescription = computed(() => {
     if (props.conversation.type === 'group') {
         return props.conversation.description || `${props.conversation.users.length} membres`
     }
-
     const otherUser = props.conversation.users.find(user => user.id !== currentUser.value?.id)
     return otherUser?.email || ''
 })
 
-// Methods
 const getAvatarFallback = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 }
@@ -145,14 +152,6 @@ const scrollToBottom = () => {
     })
 }
 
-const goBack = () => {
-    router.visit('/conversations', {
-        method: 'get',
-        preserveState: false,
-        preserveScroll: false,
-    })
-}
-
 const handleKeyPress = (event: KeyboardEvent) => {
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault()
@@ -164,71 +163,53 @@ const toggleMembersList = () => {
     showMembersList.value = !showMembersList.value
 }
 
-// 🔥 LIFECYCLE HOOKS
 onMounted(() => {
-    console.log('🎬 Component mounted, conversation ID:', props.conversation.id)
     scrollToBottom()
+    markConversationAsRead(props.conversation.id)
 
     const channelName = `conversation.${props.conversation.id}`
-    console.log('🔌 Connexion au canal:', channelName)
 
-    echoChannel = window.Echo.join(channelName)
+    echoChannel = window.Echo.private(channelName)
         .listen('.MessageSent', (event: any) => {
-            console.log('✅ ÉVÉNEMENT REÇU (.MessageSent):', event)
-            console.log('📦 Structure complète:', JSON.stringify(event, null, 2))
+            console.log('Message reçu via Echo:', event)
 
-            // 🔥 CORRECTION : Utiliser event.message au lieu de event
-            if (!event.message) {
-                console.error('❌ Pas de propriété message dans l\'événement:', event)
+            if (!event.message || !event.message.user) {
+                console.error('Structure de message invalide:', event)
                 return
             }
 
-            if (!event.message.user) {
-                console.error('❌ Pas de propriété user dans le message:', event.message)
-                return
-            }
-
-            // Vérifier que le message n'est pas déjà dans la liste
             const messageExists = localMessages.value.some(m => m.id === event.message.id)
 
             if (!messageExists) {
-                console.log('➕ Ajout du nouveau message:', event.message)
                 localMessages.value.push(event.message)
                 scrollToBottom()
-            } else {
-                console.log('⚠️ Message déjà présent, ignoré')
+
+                if (event.message.user.id !== currentUser.value?.id) {
+                    fetch(`/conversations/${props.conversation.id}/mark-as-read`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                        }
+                    }).catch(error => {
+                        console.error('Erreur lors du marquage comme lu:', error)
+                    })
+
+                    toast.success(`Nouveau message de ${event.message.user.name}`, {
+                        description: event.message.content.substring(0, 100) + (event.message.content.length > 100 ? '...' : ''),
+                        duration: 4000,
+                    })
+                }
             }
         })
         .error((error: any) => {
-            console.error('❌ ERREUR Echo:', error)
+            console.error('Erreur Echo:', error)
         })
-        .here((users: any) => {
-            console.log('👥 Utilisateurs présents:', users)
-        })
-        .joining((user: any) => {
-            console.log('➕ Utilisateur rejoint:', user)
-        })
-        .leaving((user: any) => {
-            console.log('➖ Utilisateur quitte:', user)
-        })
-
-    console.log('✅ Canal rejoint')
-
-    // Debug global Pusher
-    if (echoChannel.subscription?.bind_global) {
-        echoChannel.subscription.bind_global((eventName: string, data: any) => {
-            console.log('🔔 Événement Pusher brut:', eventName, data)
-        })
-    }
 })
 
-// 🔥 CLEANUP au démontage du composant
 onBeforeUnmount(() => {
-    console.log('🧹 Nettoyage du canal Echo')
-
     if (echoChannel) {
-        const channelName = `conversation.${props.conversation.id}`
-        window.Echo.leave(channelName)
+        window.Echo.leave(`conversation.${props.conversation.id}`)
         echoChannel = null
     }
 })
@@ -239,28 +220,12 @@ onBeforeUnmount(() => {
 
     <AppLayout>
         <div class="flex h-[calc(100vh-4rem)] bg-gray-50 dark:bg-gray-900">
-            <!-- Sidebar conversations -->
-            <div class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-                <div class="p-4 border-b border-gray-200 dark:border-gray-700">
-                    <div class="flex items-center justify-between">
-                        <h1 class="text-lg font-bold text-gray-900 dark:text-white">Messages</h1>
-                        <Button size="sm" variant="ghost" @click="goBack">
-                            <ArrowLeft class="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
+            <ConversationSidebar
+                :conversations="conversations"
+                :current-conversation-id="conversation.id"
+            />
 
-                <div class="flex-1 p-4">
-                    <p class="text-sm text-gray-500 dark:text-gray-400 text-center">
-                        Liste des conversations<br />
-                        (à implémenter)
-                    </p>
-                </div>
-            </div>
-
-            <!-- Zone principale de chat -->
             <div class="flex-1 flex flex-col">
-                <!-- Header de la conversation -->
                 <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center">
@@ -305,15 +270,12 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div class="flex flex-1 overflow-hidden">
-                    <!-- Zone des messages -->
                     <div class="flex-1 flex flex-col">
-                        <!-- 🔥 CHANGEMENT : Utiliser localMessages -->
                         <div ref="messagesContainer" class="flex-1 overflow-y-auto p-6 space-y-4">
                             <div v-for="message in localMessages" :key="message.id" class="flex"
                                  :class="{ 'justify-end': isMyMessage(message) }">
 
                                 <div class="flex max-w-xs lg:max-w-md" :class="{ 'flex-row-reverse': isMyMessage(message) }">
-
                                     <div class="flex-shrink-0"
                                          :class="{ 'ml-3': isMyMessage(message), 'mr-3': !isMyMessage(message) }">
                                         <Avatar class="h-8 w-8">
@@ -348,8 +310,7 @@ onBeforeUnmount(() => {
                             </div>
 
                             <div v-if="localMessages.length === 0" class="text-center py-12">
-                                <div
-                                    class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <div class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                                     <MessageCircle class="h-8 w-8 text-gray-400" />
                                 </div>
                                 <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
@@ -361,7 +322,6 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
 
-                        <!-- Zone de saisie -->
                         <div class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-6">
                             <div class="flex items-end space-x-4">
                                 <div class="flex-1">
@@ -394,7 +354,6 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <!-- Sidebar membres -->
                     <div v-if="conversation.type === 'group' && showMembersList"
                          class="w-64 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col">
                         <div class="p-4 border-b border-gray-200 dark:border-gray-700">

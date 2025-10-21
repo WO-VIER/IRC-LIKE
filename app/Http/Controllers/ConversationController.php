@@ -15,10 +15,61 @@ class ConversationController extends Controller
      */
     public function index()
     {
+        $userId = Auth::id();
+
         $conversations = Auth::user()->conversations()
-            ->with(['users', 'lastMessage.user'])
-            ->orderBy('last_activity_at', 'desc')
-            ->get();
+            ->with(['users'])
+            ->get()
+            ->map(function ($conversation) use ($userId) {
+                $lastMessage = \DB::table('messages')
+                    ->where('conversation_id', $conversation->id)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+
+                $lastMessageData = null;
+                if ($lastMessage) {
+                    $user = \App\Models\User::find($lastMessage->user_id);
+                    $lastMessageData = [
+                        'id' => $lastMessage->id,
+                        'content' => $lastMessage->content,
+                        'user' => $user->name,
+                        'user_id' => $lastMessage->user_id,
+                        'created_at' => $lastMessage->created_at,
+                    ];
+                }
+
+                $currentUserPivot = $conversation->users->where('id', $userId)->first();
+                $lastReadAt = $currentUserPivot ? $currentUserPivot->pivot->last_read_at : null;
+
+                $unreadCount = 0;
+                if ($lastMessage && $lastMessage->user_id !== $userId) {
+                    if (!$lastReadAt) {
+                        $unreadCount = \DB::table('messages')
+                            ->where('conversation_id', $conversation->id)
+                            ->where('user_id', '!=', $userId)
+                            ->count();
+                    } else {
+                        $unreadCount = \DB::table('messages')
+                            ->where('conversation_id', $conversation->id)
+                            ->where('user_id', '!=', $userId)
+                            ->where('created_at', '>', $lastReadAt)
+                            ->count();
+                    }
+                }
+
+                return [
+                    'id' => $conversation->id,
+                    'name' => $conversation->name,
+                    'type' => $conversation->type,
+                    'description' => $conversation->description,
+                    'last_activity_at' => $conversation->last_activity_at,
+                    'users' => $conversation->users,
+                    'last_message' => $lastMessageData,
+                    'unread_count' => $unreadCount,
+                ];
+            })
+            ->sortByDesc('last_activity_at')
+            ->values();
 
         return Inertia::render('Conversations/Index', [
             'conversations' => $conversations
@@ -112,13 +163,75 @@ class ConversationController extends Controller
             abort(403, 'Vous n\'avez pas accès à cette conversation.');
         }
 
+        // Mettre à jour last_read_at pour marquer les messages comme lus
+        $conversation->users()->updateExistingPivot(Auth::id(), [
+            'last_read_at' => now(),
+        ]);
+
         $conversation->load([
             'users',
             'messages.user'
         ]);
 
+        // Récupérer toutes les conversations de l'utilisateur pour la sidebar
+        $userId = Auth::id();
+        $conversations = Auth::user()->conversations()
+            ->with(['users'])
+            ->get()
+            ->map(function ($conv) use ($userId) {
+                $lastMessage = \DB::table('messages')
+                    ->where('conversation_id', $conv->id)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+
+                $lastMessageData = null;
+                if ($lastMessage) {
+                    $user = \App\Models\User::find($lastMessage->user_id);
+                    $lastMessageData = [
+                        'id' => $lastMessage->id,
+                        'content' => $lastMessage->content,
+                        'user' => $user->name,
+                        'user_id' => $lastMessage->user_id,
+                        'created_at' => $lastMessage->created_at,
+                    ];
+                }
+
+                $currentUserPivot = $conv->users->where('id', $userId)->first();
+                $lastReadAt = $currentUserPivot ? $currentUserPivot->pivot->last_read_at : null;
+
+                $unreadCount = 0;
+                if ($lastMessage && $lastMessage->user_id !== $userId) {
+                    if (!$lastReadAt) {
+                        $unreadCount = \DB::table('messages')
+                            ->where('conversation_id', $conv->id)
+                            ->where('user_id', '!=', $userId)
+                            ->count();
+                    } else {
+                        $unreadCount = \DB::table('messages')
+                            ->where('conversation_id', $conv->id)
+                            ->where('user_id', '!=', $userId)
+                            ->where('created_at', '>', $lastReadAt)
+                            ->count();
+                    }
+                }
+
+                return [
+                    'id' => $conv->id,
+                    'name' => $conv->name,
+                    'type' => $conv->type,
+                    'description' => $conv->description,
+                    'last_activity_at' => $conv->last_activity_at,
+                    'users' => $conv->users,
+                    'last_message' => $lastMessageData,
+                    'unread_count' => $unreadCount,
+                ];
+            })
+            ->sortByDesc('last_activity_at')
+            ->values();
+
         return Inertia::render('Conversations/Messages', [
-            'conversation' => $conversation
+            'conversation' => $conversation,
+            'conversations' => $conversations
         ]);
     }
 

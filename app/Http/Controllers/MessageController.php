@@ -11,36 +11,40 @@ use App\Events\MessageSent;
 
 class MessageController extends Controller
 {
-
+    /**
+     * Créer un nouveau message
+     */
     public function store(Request $request, Conversation $conversation)
     {
-
-        if (!$conversation->users->contains(Auth::id())) {
-            abort(403, 'Vous n\'avez pas accès à cette conversation.');
-        }
-
-        $request->validate([
+        $validated = $request->validate([
             'content' => 'required|string|max:5000',
-            'reply_to' => 'nullable|exists:messages,id',
         ]);
 
-        $message = Message::create([
-            'conversation_id' => $conversation->id,
-            'user_id' => $request->user()->id,
-            'content' => $request->input('content'),
+        $message = $conversation->messages()->create([
+            'user_id' => auth()->id(),
+            'content' => $validated['content'],
         ]);
 
-    // Charger la relation user AVANT de broadcaster
-    $message->load('user');
+        $message->load('user');
 
-    broadcast(new MessageSent($message))->toOthers();
+        // Mettre à jour last_activity_at de la conversation
+        $conversation->update(['last_activity_at' => now()]);
 
-    $conversation->update(['last_activity_at' => now()]);
+        // Mettre à jour last_read_at pour l'utilisateur qui envoie le message
+        // Cela évite que ses propres messages soient comptés comme "non lus"
+        $conversation->users()->updateExistingPivot(auth()->id(), [
+            'last_read_at' => now(),
+        ]);
 
-    return back();
+        // Broadcast dans le canal de la conversation
+        broadcast(new MessageSent($message))->toOthers();
+
+        return back();
     }
 
-
+    /**
+     * Mettre à jour un message
+     */
     public function update(Request $request, Message $message)
     {
         // Vérifier que l'utilisateur est l'auteur du message
@@ -58,7 +62,6 @@ class MessageController extends Controller
             'edited_at' => now(),
         ]);
 
-
         return response()->json(['message' => 'Message modifié avec succès.']);
     }
 
@@ -75,7 +78,6 @@ class MessageController extends Controller
         }
 
         $message->delete();
-
 
         return response()->json(['message' => 'Message supprimé avec succès.']);
     }

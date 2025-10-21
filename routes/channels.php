@@ -2,18 +2,13 @@
 
 use Illuminate\Support\Facades\Broadcast;
 
-Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
-    return (int) $user->id === (int) $id;
+Broadcast::channel('user.{userId}', function ($user, $userId) {
+    return (int) $user->id === (int) $userId;
 });
 
 Broadcast::channel('conversation.{conversationId}', function ($user, $conversationId) {
-    if ($user->conversations()->where('conversations.id', $conversationId)->exists()) {
-        return [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-        ];
-    }
-
-    return false;
+    return \DB::table('conversation_users')
+        ->where('conversation_id', $conversationId)
+        ->where('user_id', $user->id)
+        ->exists();
 });

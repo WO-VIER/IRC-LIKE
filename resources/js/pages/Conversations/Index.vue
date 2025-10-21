@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+// SUPPRIMÉ: import { useUnreadMessages } from '@/composables/useUnreadMessages'
 import {
     Hash,
     Users,
@@ -40,6 +41,7 @@ interface Conversation {
     users: User[]
     last_message?: Message
     last_activity_at: string
+    unread_count: number  // Utiliser seulement celui-ci
 }
 
 const props = defineProps<{
@@ -48,8 +50,64 @@ const props = defineProps<{
 
 const { auth } = usePage().props as any
 const searchTerm = ref('')
+// SUPPRIMÉ: const { getUnreadCount } = useUnreadMessages()
+const localConversations = ref<Conversation[]>([...props.conversations])
 
-// Computed
+let echoChannel: any = null
+
+onMounted(() => {
+    const userId = auth.user?.id
+    if (!userId) return
+
+    // Écouter les messages sur le canal utilisateur
+    echoChannel = window.Echo.private(`user.${userId}`)
+        .listen('.MessageSent', (event: any) => {
+            console.log('Message reçu sur user channel:', event)
+
+            if (!event.message) return
+
+            const conversationIndex = localConversations.value.findIndex(
+                c => c.id === event.message.conversation_id
+            )
+
+            if (conversationIndex !== -1) {
+                const conversation = localConversations.value[conversationIndex]
+
+                conversation.last_message = {
+                    id: event.message.id,
+                    content: event.message.content,
+                    user: event.message.user.name,
+                    user_id: event.message.user.id,
+                    created_at: event.message.created_at
+                }
+
+                conversation.last_activity_at = event.message.created_at
+
+                // ✅ IMPORTANT : Incrémenter unread_count SEULEMENT si ce n'est pas l'utilisateur courant
+                // ET qu'on n'est pas déjà dans cette conversation
+                const currentUrl = window.location.pathname
+                const isOnThisConversation = currentUrl === `/conversations/${event.message.conversation_id}`
+
+                if (event.message.user.id !== userId && !isOnThisConversation) {
+                    conversation.unread_count = (conversation.unread_count || 0) + 1
+                }
+
+                localConversations.value.splice(conversationIndex, 1)
+                localConversations.value.unshift(conversation)
+            }
+        })
+        .error((error: any) => {
+            console.error('Erreur Echo sur user channel:', error)
+        })
+})
+
+onUnmounted(() => {
+    const userId = auth.user?.id
+    if (userId && echoChannel) {
+        window.Echo.leave(`user.${userId}`)
+    }
+})
+
 const filteredConversations = computed(() => {
     if (!searchTerm.value) return sortedConversations.value
 
@@ -60,7 +118,7 @@ const filteredConversations = computed(() => {
 })
 
 const sortedConversations = computed(() => {
-    return [...props.conversations].sort((a, b) =>
+    return [...localConversations.value].sort((a, b) =>
         new Date(b.last_activity_at).getTime() - new Date(a.last_activity_at).getTime()
     )
 })
@@ -75,7 +133,6 @@ const groupConversations = computed(() =>
 
 const currentUser = computed(() => auth.user)
 
-// Methods
 const getConversationName = (conversation: Conversation) => {
     if (conversation.type === 'group') {
         return conversation.name || 'Groupe sans nom'
@@ -95,24 +152,38 @@ const getAvatarFallback = (name: string) => {
 }
 
 const formatMessageTime = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const isToday = date.toDateString() === now.toDateString()
+    if (!dateString) return ''
 
-    if (isToday) {
-        return date.toLocaleTimeString('fr-FR', {
-            hour: '2-digit',
-            minute: '2-digit'
+    try {
+        const date = new Date(dateString)
+        if (isNaN(date.getTime())) return ''
+
+        const now = new Date()
+        const isToday = date.toDateString() === now.toDateString()
+
+        if (isToday) {
+            return date.toLocaleTimeString('fr-FR', {
+                hour: '2-digit',
+                minute: '2-digit'
+            })
+        }
+
+        return date.toLocaleDateString('fr-FR', {
+            day: 'numeric',
+            month: 'short'
         })
+    } catch (e) {
+        return ''
     }
-
-    return date.toLocaleDateString('fr-FR', {
-        day: 'numeric',
-        month: 'short'
-    })
 }
 
 const selectConversation = (conversationId: number) => {
+    // Réinitialiser le compteur localement
+    const conversation = localConversations.value.find(c => c.id === conversationId)
+    if (conversation) {
+        conversation.unread_count = 0
+    }
+
     router.visit(`/conversations/${conversationId}`, {
         preserveState: false
     })
@@ -122,30 +193,7 @@ const createNewConversation = () => {
     router.get('/conversations/create')
 }
 
-const hasUnreadMessages = (conversation: Conversation): boolean => {
-    if (!conversation.last_message) {
-        return false
-    }
-
-    if (conversation.last_message.user_id === currentUser.value?.id) {
-        return false
-    }
-
-    const currentUserInConv = conversation.users.find(u => u.id === currentUser.value?.id)
-
-    if (!currentUserInConv) {
-        return true
-    }
-
-    if (!currentUserInConv.last_read_at) {
-        return true
-    }
-
-    const lastRead = new Date(currentUserInConv.last_read_at)
-    const lastMessageDate = new Date(conversation.last_message.created_at)
-
-    return lastMessageDate > lastRead
-}
+// SUPPRIMÉ: hasUnreadMessages()
 
 </script>
 
@@ -154,9 +202,7 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
 
     <AppLayout>
         <div class="flex h-[calc(100vh-4rem)] bg-gray-50 dark:bg-gray-900">
-            <!-- Sidebar principale -->
             <div class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-                <!-- Header -->
                 <div class="p-4 border-b border-gray-200 dark:border-gray-700">
                     <div class="flex items-center justify-between mb-4">
                         <h1 class="text-xl font-bold text-gray-900 dark:text-white">
@@ -167,7 +213,6 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
                         </Button>
                     </div>
 
-                    <!-- Barre de recherche -->
                     <div class="relative">
                         <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input v-model="searchTerm" placeholder="Rechercher une conversation..."
@@ -175,14 +220,11 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
                     </div>
                 </div>
 
-                <!-- Liste des conversations -->
                 <div class="flex-1 overflow-y-auto px-3 py-4">
                     <div class="space-y-6">
-                        <!-- Messages directs -->
                         <div v-if="privateConversations.length > 0">
                             <div class="px-2 mb-2">
-                                <h2
-                                    class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center">
+                                <h2 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center">
                                     <MessageCircle class="h-3 w-3 mr-2" />
                                     Messages directs
                                     <Badge variant="secondary" class="ml-2 text-xs">
@@ -195,27 +237,37 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
                                 <div v-for="conversation in privateConversations" :key="conversation.id"
                                      class="flex items-center p-3 mx-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 group"
                                      @click="selectConversation(conversation.id)">
-                                    <Avatar class="h-10 w-10">
-                                        <AvatarFallback
-                                            class="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-medium">
+
+                                    <Avatar class="h-10 w-10 relative">
+                                        <AvatarFallback class="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-medium">
                                             {{ getAvatarFallback(getConversationName(conversation)) }}
                                         </AvatarFallback>
                                     </Avatar>
 
                                     <div class="ml-3 flex-1 min-w-0">
                                         <div class="flex items-center justify-between">
-                                            <h3 class="truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
-                                                :class="hasUnreadMessages(conversation) ? 'font-bold text-gray-900 dark:text-white' : 'font-semibold text-gray-900 dark:text-white'">
-                                                {{ getConversationName(conversation) }}
-                                            </h3>
-                                            <span v-if="conversation.last_message"
+                                            <div class="flex items-center gap-2">
+                                                <h3 class="truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
+                                                    :class="(conversation.unread_count || 0) > 0 ? 'font-bold text-gray-900 dark:text-white' : 'font-semibold text-gray-900 dark:text-white'">
+                                                    {{ getConversationName(conversation) }}
+                                                </h3>
+                                                <Badge
+                                                    v-if="(conversation.unread_count || 0) > 0"
+                                                    variant="destructive"
+                                                    class="h-5 px-2 text-xs"
+                                                >
+                                                    {{ conversation.unread_count }}
+                                                </Badge>
+                                            </div>
+                                            <span v-if="conversation.last_message && conversation.last_message.created_at"
                                                   class="text-xs text-gray-500 dark:text-gray-400">
                                                 {{ formatMessageTime(conversation.last_message.created_at) }}
                                             </span>
                                         </div>
 
                                         <p v-if="conversation.last_message"
-                                           class="text-sm text-gray-600 dark:text-gray-400 truncate">
+                                           class="text-sm text-gray-600 dark:text-gray-400 truncate"
+                                           :class="(conversation.unread_count || 0) > 0 ? 'font-semibold' : ''">
                                             {{ conversation.last_message.content }}
                                         </p>
                                         <p v-else class="text-sm text-gray-500 dark:text-gray-500 italic">
@@ -226,11 +278,9 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
                             </div>
                         </div>
 
-                        <!-- Conversations de groupe -->
                         <div v-if="groupConversations.length > 0">
                             <div class="px-2 mb-2">
-                                <h2
-                                    class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center">
+                                <h2 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center">
                                     <Hash class="h-3 w-3 mr-2" />
                                     Groupes
                                     <Badge variant="secondary" class="ml-2 text-xs">
@@ -243,52 +293,56 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
                                 <div v-for="conversation in groupConversations" :key="conversation.id"
                                      class="flex items-center p-3 mx-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 group"
                                      @click="selectConversation(conversation.id)">
-                                    <div
-                                        class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl mr-3">
-                                        <Hash class="h-5 w-5 text-white" />
+
+                                    <div class="relative">
+                                        <div class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl mr-3">
+                                            <Hash class="h-5 w-5 text-white" />
+                                        </div>
+                                        <Badge
+                                            v-if="(conversation.unread_count || 0) > 0"
+                                            variant="destructive"
+                                            class="absolute -top-2 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs rounded-full"
+                                        >
+                                            {{ conversation.unread_count }}
+                                        </Badge>
                                     </div>
 
                                     <div class="flex-1 min-w-0">
                                         <div class="flex items-center justify-between">
-                                            <h3
-                                                class="font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                                {{ conversation.name }}
-                                            </h3>
-                                            <span v-if="conversation.last_message"
+                                            <div class="flex items-center gap-2">
+                                                <h3 class="truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
+                                                    :class="(conversation.unread_count || 0) > 0 ? 'font-bold text-gray-900 dark:text-white' : 'font-semibold text-gray-900 dark:text-white'">
+                                                    {{ conversation.name }}
+                                                </h3>
+                                                <Badge
+                                                    v-if="(conversation.unread_count || 0) > 0"
+                                                    variant="destructive"
+                                                    class="h-5 px-2 text-xs"
+                                                >
+                                                    {{ conversation.unread_count }}
+                                                </Badge>
+                                            </div>
+                                            <span v-if="conversation.last_message && conversation.last_message.created_at"
                                                   class="text-xs text-gray-500 dark:text-gray-400">
                                                 {{ formatMessageTime(conversation.last_message.created_at) }}
                                             </span>
                                         </div>
 
-                                        <div class="flex items-center justify-between">
-                                            <p v-if="conversation.last_message" class="text-sm truncate"
-                                               :class="hasUnreadMessages(conversation) ? 'text-gray-900 dark:text-white font-semibold' : 'text-gray-600 dark:text-gray-400'">
-                                                <span class="font-medium">{{ conversation.last_message.user }}:</span>
-                                                {{ conversation.last_message.content }}
-                                            </p>
-                                            <p v-else class="text-sm text-gray-500 dark:text-gray-500 italic">
-                                                Aucun message
-                                            </p>
-
-                                            <div class="flex items-center">
-                                                <Users class="h-3 w-3 text-gray-400 mr-1" />
-                                                <span class="text-xs text-gray-500">{{ conversation.users.length }}</span>
-                                            </div>
-                                        </div>
-
-                                        <p v-if="conversation.description"
-                                           class="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
-                                            {{ conversation.description }}
+                                        <p v-if="conversation.last_message"
+                                           class="text-sm text-gray-600 dark:text-gray-400 truncate"
+                                           :class="(conversation.unread_count || 0) > 0 ? 'font-semibold' : ''">
+                                            {{ conversation.last_message.content }}
+                                        </p>
+                                        <p v-else class="text-sm text-gray-500 dark:text-gray-500 italic">
+                                            Aucun message
                                         </p>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- État vide -->
                         <div v-if="filteredConversations.length === 0" class="text-center py-8">
-                            <div
-                                class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <div class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <MessageCircle class="h-8 w-8 text-gray-400" />
                             </div>
 
@@ -308,12 +362,10 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
                     </div>
                 </div>
 
-                <!-- Footer utilisateur -->
                 <div class="p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                     <div class="flex items-center">
                         <Avatar class="h-10 w-10">
-                            <AvatarFallback
-                                class="bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium">
+                            <AvatarFallback class="bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium">
                                 {{ getAvatarFallback(currentUser?.name || '') }}
                             </AvatarFallback>
                         </Avatar>
@@ -332,11 +384,9 @@ const hasUnreadMessages = (conversation: Conversation): boolean => {
                 </div>
             </div>
 
-            <!-- Zone principale -->
             <div class="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
                 <div class="text-center">
-                    <div
-                        class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                    <div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
                         <MessageCircle class="h-10 w-10 text-white" />
                     </div>
 

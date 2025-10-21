@@ -30,7 +30,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('conversations/{conversation}/add-user', [ConversationController::class, 'addUser'])->name('conversations.add-user');
     Route::delete('conversations/{conversation}/leave', [ConversationController::class, 'leave'])->name('conversations.leave');
-
     // Routes pour les messages
     Route::post('conversations/{conversation}/messages', [MessageController::class, 'store'])->name('messages.store');
     Route::put('messages/{message}', [MessageController::class, 'update'])->name('messages.update');
