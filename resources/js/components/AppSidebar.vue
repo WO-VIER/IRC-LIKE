@@ -6,7 +6,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Home } from 'lucide-vue-next';
+import { BookOpen, Folder, LayoutGrid, Home, BadgeEuro } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const mainNavItems: NavItem[] = [
@@ -19,6 +19,11 @@ const mainNavItems: NavItem[] = [
         title: 'Conversations',
         href: '/conversations',
         icon: Home,
+    },
+    {
+        title: 'Landing',
+        href: '/Landing',
+        icon: BadgeEuro,
     },
 ];
 
@@ -43,7 +48,7 @@ const footerNavItems: NavItem[] = [
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
                         <Link :href="dashboard()">
-                            <AppLogo />
+                        <AppLogo />
                         </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>

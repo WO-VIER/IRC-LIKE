@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
+import { toast } from 'vue-sonner'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -90,10 +91,19 @@ onMounted(() => {
 
                 if (event.message.user.id !== userId && !isOnThisConversation) {
                     conversation.unread_count = (conversation.unread_count || 0) + 1
+
+                    // ✅ Afficher une notification toast pour les messages des autres conversations
+                    toast.success(`Nouveau message de ${event.message.user.name}`, {
+                        description: event.message.content.substring(0, 100) + (event.message.content.length > 100 ? '...' : ''),
+                        duration: 4000,
+                    })
                 }
 
                 localConversations.value.splice(conversationIndex, 1)
                 localConversations.value.unshift(conversation)
+
+                // ✅ Forcer la réactivité de Vue
+                localConversations.value = [...localConversations.value]
             }
         })
         .error((error: any) => {
@@ -198,6 +208,7 @@ const createNewConversation = () => {
 </script>
 
 <template>
+
     <Head title="Conversations" />
 
     <AppLayout>
@@ -216,7 +227,7 @@ const createNewConversation = () => {
                     <div class="relative">
                         <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input v-model="searchTerm" placeholder="Rechercher une conversation..."
-                               class="pl-10 bg-gray-100 dark:bg-gray-700 border-0" />
+                            class="pl-10 bg-gray-100 dark:bg-gray-700 border-0" />
                     </div>
                 </div>
 
@@ -224,7 +235,8 @@ const createNewConversation = () => {
                     <div class="space-y-6">
                         <div v-if="privateConversations.length > 0">
                             <div class="px-2 mb-2">
-                                <h2 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center">
+                                <h2
+                                    class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center">
                                     <MessageCircle class="h-3 w-3 mr-2" />
                                     Messages directs
                                     <Badge variant="secondary" class="ml-2 text-xs">
@@ -235,11 +247,12 @@ const createNewConversation = () => {
 
                             <div class="space-y-1">
                                 <div v-for="conversation in privateConversations" :key="conversation.id"
-                                     class="flex items-center p-3 mx-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 group"
-                                     @click="selectConversation(conversation.id)">
+                                    class="flex items-center p-3 mx-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 group"
+                                    @click="selectConversation(conversation.id)">
 
                                     <Avatar class="h-10 w-10 relative">
-                                        <AvatarFallback class="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-medium">
+                                        <AvatarFallback
+                                            class="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-medium">
                                             {{ getAvatarFallback(getConversationName(conversation)) }}
                                         </AvatarFallback>
                                     </Avatar>
@@ -251,23 +264,21 @@ const createNewConversation = () => {
                                                     :class="(conversation.unread_count || 0) > 0 ? 'font-bold text-gray-900 dark:text-white' : 'font-semibold text-gray-900 dark:text-white'">
                                                     {{ getConversationName(conversation) }}
                                                 </h3>
-                                                <Badge
-                                                    v-if="(conversation.unread_count || 0) > 0"
-                                                    variant="destructive"
-                                                    class="h-5 px-2 text-xs"
-                                                >
+                                                <Badge v-if="(conversation.unread_count || 0) > 0" variant="destructive"
+                                                    class="h-5 px-2 text-xs">
                                                     {{ conversation.unread_count }}
                                                 </Badge>
                                             </div>
-                                            <span v-if="conversation.last_message && conversation.last_message.created_at"
-                                                  class="text-xs text-gray-500 dark:text-gray-400">
+                                            <span
+                                                v-if="conversation.last_message && conversation.last_message.created_at"
+                                                class="text-xs text-gray-500 dark:text-gray-400">
                                                 {{ formatMessageTime(conversation.last_message.created_at) }}
                                             </span>
                                         </div>
 
                                         <p v-if="conversation.last_message"
-                                           class="text-sm text-gray-600 dark:text-gray-400 truncate"
-                                           :class="(conversation.unread_count || 0) > 0 ? 'font-semibold' : ''">
+                                            class="text-sm text-gray-600 dark:text-gray-400 truncate"
+                                            :class="(conversation.unread_count || 0) > 0 ? 'font-semibold' : ''">
                                             {{ conversation.last_message.content }}
                                         </p>
                                         <p v-else class="text-sm text-gray-500 dark:text-gray-500 italic">
@@ -280,7 +291,8 @@ const createNewConversation = () => {
 
                         <div v-if="groupConversations.length > 0">
                             <div class="px-2 mb-2">
-                                <h2 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center">
+                                <h2
+                                    class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center">
                                     <Hash class="h-3 w-3 mr-2" />
                                     Groupes
                                     <Badge variant="secondary" class="ml-2 text-xs">
@@ -291,18 +303,16 @@ const createNewConversation = () => {
 
                             <div class="space-y-1">
                                 <div v-for="conversation in groupConversations" :key="conversation.id"
-                                     class="flex items-center p-3 mx-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 group"
-                                     @click="selectConversation(conversation.id)">
+                                    class="flex items-center p-3 mx-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 group"
+                                    @click="selectConversation(conversation.id)">
 
                                     <div class="relative">
-                                        <div class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl mr-3">
+                                        <div
+                                            class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl mr-3">
                                             <Hash class="h-5 w-5 text-white" />
                                         </div>
-                                        <Badge
-                                            v-if="(conversation.unread_count || 0) > 0"
-                                            variant="destructive"
-                                            class="absolute -top-2 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs rounded-full"
-                                        >
+                                        <Badge v-if="(conversation.unread_count || 0) > 0" variant="destructive"
+                                            class="absolute -top-2 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs rounded-full">
                                             {{ conversation.unread_count }}
                                         </Badge>
                                     </div>
@@ -314,23 +324,21 @@ const createNewConversation = () => {
                                                     :class="(conversation.unread_count || 0) > 0 ? 'font-bold text-gray-900 dark:text-white' : 'font-semibold text-gray-900 dark:text-white'">
                                                     {{ conversation.name }}
                                                 </h3>
-                                                <Badge
-                                                    v-if="(conversation.unread_count || 0) > 0"
-                                                    variant="destructive"
-                                                    class="h-5 px-2 text-xs"
-                                                >
+                                                <Badge v-if="(conversation.unread_count || 0) > 0" variant="destructive"
+                                                    class="h-5 px-2 text-xs">
                                                     {{ conversation.unread_count }}
                                                 </Badge>
                                             </div>
-                                            <span v-if="conversation.last_message && conversation.last_message.created_at"
-                                                  class="text-xs text-gray-500 dark:text-gray-400">
+                                            <span
+                                                v-if="conversation.last_message && conversation.last_message.created_at"
+                                                class="text-xs text-gray-500 dark:text-gray-400">
                                                 {{ formatMessageTime(conversation.last_message.created_at) }}
                                             </span>
                                         </div>
 
                                         <p v-if="conversation.last_message"
-                                           class="text-sm text-gray-600 dark:text-gray-400 truncate"
-                                           :class="(conversation.unread_count || 0) > 0 ? 'font-semibold' : ''">
+                                            class="text-sm text-gray-600 dark:text-gray-400 truncate"
+                                            :class="(conversation.unread_count || 0) > 0 ? 'font-semibold' : ''">
                                             {{ conversation.last_message.content }}
                                         </p>
                                         <p v-else class="text-sm text-gray-500 dark:text-gray-500 italic">
@@ -342,7 +350,8 @@ const createNewConversation = () => {
                         </div>
 
                         <div v-if="filteredConversations.length === 0" class="text-center py-8">
-                            <div class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <div
+                                class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <MessageCircle class="h-8 w-8 text-gray-400" />
                             </div>
 
@@ -351,7 +360,8 @@ const createNewConversation = () => {
                             </h3>
 
                             <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                                {{ searchTerm ? 'Essayez avec d\'autres mots-clés' : 'Commencez une nouvelle conversation' }}
+                                {{ searchTerm ? 'Essayez avec d\'autres mots-clés' :
+                                    'Commencez une nouvelleconversation' }}
                             </p>
 
                             <Button v-if="!searchTerm" size="sm" @click="createNewConversation">
@@ -386,7 +396,8 @@ const createNewConversation = () => {
 
             <div class="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
                 <div class="text-center">
-                    <div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                    <div
+                        class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
                         <MessageCircle class="h-10 w-10 text-white" />
                     </div>
 

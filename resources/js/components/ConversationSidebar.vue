@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
+import { toast } from 'vue-sonner'
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -130,6 +131,52 @@ const goBackToIndex = () => {
         preserveState: false
     })
 }
+
+// ✅ Écouter les messages sur le canal utilisateur pour les autres conversations
+let echoChannel: any = null
+
+onMounted(() => {
+    const userId = auth.user?.id
+    if (!userId) return
+
+    echoChannel = window.Echo.private(`user.${userId}`)
+        .listen('.MessageSent', (event: any) => {
+            console.log('📨 Message reçu sur user channel (Sidebar):', event)
+
+            if (!event.message) return
+
+            // Vérifier si on est dans cette conversation
+            const currentUrl = window.location.pathname
+            const isOnThisConversation = currentUrl === `/conversations/${event.message.conversation_id}`
+
+            // Si on est PAS dans cette conversation et que ce n'est pas notre message
+            if (!isOnThisConversation && event.message.user.id !== userId) {
+                // Afficher une notification toast
+                toast.success(`Nouveau message de ${event.message.user.name}`, {
+                    description: event.message.content.substring(0, 100) + (event.message.content.length > 100 ? '...' : ''),
+                    duration: 4000,
+                })
+
+                // Recharger la liste des conversations pour mettre à jour le badge et last_message
+                setTimeout(() => {
+                    router.reload({
+                        only: ['conversations']
+                    })
+                }, 500)
+            }
+        })
+        .error((error: any) => {
+            console.error('Erreur Echo sur user channel (Sidebar):', error)
+        })
+})
+
+onUnmounted(() => {
+    const userId = auth.user?.id
+    if (userId && echoChannel) {
+        window.Echo.leave(`user.${userId}`)
+        echoChannel = null
+    }
+})
 </script>
 
 <template>
@@ -137,13 +184,7 @@ const goBackToIndex = () => {
         <div class="p-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-2">
-                    <Button
-                        v-if="currentConversationId"
-                        size="sm"
-                        variant="ghost"
-                        @click="goBackToIndex"
-                        class="mr-2"
-                    >
+                    <Button v-if="currentConversationId" size="sm" variant="ghost" @click="goBackToIndex" class="mr-2">
                         <ArrowLeft class="h-4 w-4" />
                     </Button>
                     <h1 class="text-xl font-bold text-gray-900 dark:text-white">
@@ -158,7 +199,7 @@ const goBackToIndex = () => {
             <div class="relative">
                 <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input v-model="searchTerm" placeholder="Rechercher une conversation..."
-                       class="pl-10 bg-gray-100 dark:bg-gray-700 border-0" />
+                    class="pl-10 bg-gray-100 dark:bg-gray-700 border-0" />
             </div>
         </div>
 
@@ -166,7 +207,8 @@ const goBackToIndex = () => {
             <div class="space-y-6">
                 <div v-if="privateConversations.length > 0">
                     <div class="px-2 mb-2">
-                        <h2 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center">
+                        <h2
+                            class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center">
                             <MessageCircle class="h-3 w-3 mr-2" />
                             Messages directs
                             <Badge variant="secondary" class="ml-2 text-xs">
@@ -177,12 +219,13 @@ const goBackToIndex = () => {
 
                     <div class="space-y-1">
                         <div v-for="conversation in privateConversations" :key="conversation.id"
-                             class="flex items-center p-3 mx-2 rounded-xl cursor-pointer transition-all duration-200 group"
-                             :class="currentConversationId === conversation.id ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-100 dark:hover:bg-gray-700'"
-                             @click="selectConversation(conversation.id)">
+                            class="flex items-center p-3 mx-2 rounded-xl cursor-pointer transition-all duration-200 group"
+                            :class="currentConversationId === conversation.id ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-100 dark:hover:bg-gray-700'"
+                            @click="selectConversation(conversation.id)">
 
                             <Avatar class="h-10 w-10 relative">
-                                <AvatarFallback class="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-medium">
+                                <AvatarFallback
+                                    class="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-medium">
                                     {{ getAvatarFallback(getConversationName(conversation)) }}
                                 </AvatarFallback>
                             </Avatar>
@@ -194,23 +237,20 @@ const goBackToIndex = () => {
                                             :class="(conversation.unread_count || 0) > 0 ? 'font-bold text-gray-900 dark:text-white' : 'font-semibold text-gray-900 dark:text-white'">
                                             {{ getConversationName(conversation) }}
                                         </h3>
-                                        <Badge
-                                            v-if="(conversation.unread_count || 0) > 0"
-                                            variant="destructive"
-                                            class="h-5 px-2 text-xs"
-                                        >
+                                        <Badge v-if="(conversation.unread_count || 0) > 0" variant="destructive"
+                                            class="h-5 px-2 text-xs">
                                             {{ conversation.unread_count }}
                                         </Badge>
                                     </div>
                                     <span v-if="conversation.last_message && conversation.last_message.created_at"
-                                          class="text-xs text-gray-500 dark:text-gray-400">
+                                        class="text-xs text-gray-500 dark:text-gray-400">
                                         {{ formatMessageTime(conversation.last_message.created_at) }}
                                     </span>
                                 </div>
 
                                 <p v-if="conversation.last_message"
-                                   class="text-sm text-gray-600 dark:text-gray-400 truncate"
-                                   :class="(conversation.unread_count || 0) > 0 ? 'font-semibold' : ''">
+                                    class="text-sm text-gray-600 dark:text-gray-400 truncate"
+                                    :class="(conversation.unread_count || 0) > 0 ? 'font-semibold' : ''">
                                     {{ conversation.last_message.content }}
                                 </p>
                                 <p v-else class="text-sm text-gray-500 dark:text-gray-500 italic">
@@ -223,7 +263,8 @@ const goBackToIndex = () => {
 
                 <div v-if="groupConversations.length > 0">
                     <div class="px-2 mb-2">
-                        <h2 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center">
+                        <h2
+                            class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center">
                             <Hash class="h-3 w-3 mr-2" />
                             Groupes
                             <Badge variant="secondary" class="ml-2 text-xs">
@@ -234,19 +275,17 @@ const goBackToIndex = () => {
 
                     <div class="space-y-1">
                         <div v-for="conversation in groupConversations" :key="conversation.id"
-                             class="flex items-center p-3 mx-2 rounded-xl cursor-pointer transition-all duration-200 group"
-                             :class="currentConversationId === conversation.id ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-100 dark:hover:bg-gray-700'"
-                             @click="selectConversation(conversation.id)">
+                            class="flex items-center p-3 mx-2 rounded-xl cursor-pointer transition-all duration-200 group"
+                            :class="currentConversationId === conversation.id ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-100 dark:hover:bg-gray-700'"
+                            @click="selectConversation(conversation.id)">
 
                             <div class="relative">
-                                <div class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl mr-3">
+                                <div
+                                    class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl mr-3">
                                     <Hash class="h-5 w-5 text-white" />
                                 </div>
-                                <Badge
-                                    v-if="(conversation.unread_count || 0) > 0"
-                                    variant="destructive"
-                                    class="absolute -top-2 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs rounded-full"
-                                >
+                                <Badge v-if="(conversation.unread_count || 0) > 0" variant="destructive"
+                                    class="absolute -top-2 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs rounded-full">
                                     {{ conversation.unread_count }}
                                 </Badge>
                             </div>
@@ -258,23 +297,20 @@ const goBackToIndex = () => {
                                             :class="(conversation.unread_count || 0) > 0 ? 'font-bold text-gray-900 dark:text-white' : 'font-semibold text-gray-900 dark:text-white'">
                                             {{ conversation.name }}
                                         </h3>
-                                        <Badge
-                                            v-if="(conversation.unread_count || 0) > 0"
-                                            variant="destructive"
-                                            class="h-5 px-2 text-xs"
-                                        >
+                                        <Badge v-if="(conversation.unread_count || 0) > 0" variant="destructive"
+                                            class="h-5 px-2 text-xs">
                                             {{ conversation.unread_count }}
                                         </Badge>
                                     </div>
                                     <span v-if="conversation.last_message && conversation.last_message.created_at"
-                                          class="text-xs text-gray-500 dark:text-gray-400">
+                                        class="text-xs text-gray-500 dark:text-gray-400">
                                         {{ formatMessageTime(conversation.last_message.created_at) }}
                                     </span>
                                 </div>
 
                                 <p v-if="conversation.last_message"
-                                   class="text-sm text-gray-600 dark:text-gray-400 truncate"
-                                   :class="(conversation.unread_count || 0) > 0 ? 'font-semibold' : ''">
+                                    class="text-sm text-gray-600 dark:text-gray-400 truncate"
+                                    :class="(conversation.unread_count || 0) > 0 ? 'font-semibold' : ''">
                                     {{ conversation.last_message.content }}
                                 </p>
                                 <p v-else class="text-sm text-gray-500 dark:text-gray-500 italic">

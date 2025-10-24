@@ -11,14 +11,16 @@ Route::get('/', function () {
     if (auth()->check()) {
         return redirect()->route('conversations.index');
     }
-    return Inertia::render('Welcome');
+    return Inertia::render('Landing/Landing');
 })->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // Dashboard reste inchangé - retour à l'original
+
     Route::get('dashboard', function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
+
 
     // Routes pour les conversations
     Route::get('/conversations', [ConversationController::class, 'index'])->name('conversations.index');
@@ -42,6 +44,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
     Route::delete('notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
     Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unread-count');
+});
+
+Route::get('/Landing', function () {
+    return Inertia::render('Landing/Landing');
 });
 
 require __DIR__ . '/settings.php';
