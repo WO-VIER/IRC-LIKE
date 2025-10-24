@@ -5,7 +5,7 @@ FROM php:8.2-cli
 
 # Installer dépendances système + SQLite + npm + Node
 RUN apt-get update && apt-get install -y \
-    curl gnupg2 libzip-dev zip unzip sqlite3 libsqlite3-dev \
+    curl gnupg2 libzip-dev zip unzip sqlite3 libsqlite3-dev nano openssh-client \
     && docker-php-ext-install pdo pdo_sqlite \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
