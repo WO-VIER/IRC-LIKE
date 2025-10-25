@@ -1,34 +1,42 @@
-FROM php:8.2-cli
+FROM php:8.2-apache
 
-# Installer dépendances système + Node + extensions PHP SQLite
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    curl gnupg2 libzip-dev zip unzip sqlite3 libsqlite3-dev \
-    nano openssh-client \
-    && docker-php-ext-install pdo pdo_sqlite \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    git \
+    curl \
+    zip \
+    unzip \
+    sqlite3 \
+    libsqlite3-dev \
+    nodejs \
+    npm \
+    && docker-php-ext-install pdo pdo_sqlite
 
-# Installer Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+# Enable Apache rewrite module
+RUN a2enmod rewrite
 
+# Set working directory
 WORKDIR /var/www/html
 
-# Copier projet dans l'image
+# Copy application files
 COPY . .
 
-# Installer dépendances Laravel + Vite
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
-RUN npm install
-RUN npm run build
 
-# Configurer Laravel
-RUN cp .env.example .env && php artisan key:generate
+# Build frontend
+RUN npm install && npm run build
 
-# Base SQLite pour migrations
-RUN mkdir -p database && touch database/database.sqlite
+# Ensure storage directories exist & set permissions
+RUN mkdir -p storage bootstrap/cache \
+    && touch storage/database.sqlite \
+    && chown -R www-data:www-data storage bootstrap/cache
 
+# Expose port
 EXPOSE 8080
 
-# Démarrer Laravel
-CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8080
+# Start Apache
+CMD ["apache2-foreground"]
