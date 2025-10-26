@@ -1,42 +1,34 @@
-FROM php:8.2-apache
+FROM php:8.2-cli
 
-# Install system dependencies
+# Install necessary extensions
 RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    zip \
     unzip \
-    sqlite3 \
+    git \
     libsqlite3-dev \
-    nodejs \
-    npm \
     && docker-php-ext-install pdo pdo_sqlite
 
-# Enable Apache rewrite module
-RUN a2enmod rewrite
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Set working directory
-WORKDIR /var/www/html
+WORKDIR /app
 
 # Copy application files
 COPY . .
 
-# Install Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-# Install PHP dependencies
+# Install dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Build frontend
-RUN npm install && npm run build
-
-# Ensure storage directories exist & set permissions
-RUN mkdir -p storage bootstrap/cache \
-    && touch storage/database.sqlite \
-    && chown -R www-data:www-data storage bootstrap/cache
-
-# Expose port
+# Expose the port Laravel will run on
 EXPOSE 8080
 
-# Start Apache
-CMD ["apache2-foreground"]
+# App key (if not provided by DO)
+RUN php artisan key:generate --force || true
+
+# Migrate database if exists (won’t break if not)
+RUN mkdir -p /app/database && \
+    touch /app/database/database.sqlite && \
+    php artisan migrate --force || true
+
+# Run the server
+CMD php artisan serve --host=0.0.0.0 --port=8080
