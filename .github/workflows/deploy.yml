@@ -1,21 +1,20 @@
-name: linter
+name: CI/CD Pipeline
 
 on:
   push:
     branches:
-      - develop
       - main
+      - develop
   pull_request:
     branches:
-      - develop
       - main
-
-permissions:
-  contents: write
+      - develop
 
 jobs:
-  ci:
+  # --- ÉTAPE 1: Test du code ---
+  test:
     runs-on: ubuntu-latest
+    name: Run Linter & Tests
 
     steps:
       - name: Checkout
@@ -54,13 +53,59 @@ jobs:
       - name: Prepare SQLite and Migrate
         run: |
           mkdir -p database
-          : > database/database.sqlite
+          touch database/database.sqlite
           php artisan key:generate
           php artisan migrate --force
 
-      - name: Build Assets (facultatif pour tests PHP)
+      - name: Build Assets
         run: npm run build
-        continue-on-error: true
+        continue-on-error: true # On n'arrête pas le test si le build échoue
 
       - name: Run Pest
         run: ./vendor/bin/pest -q
+
+  # --- ÉTAPE 2: DÉPLOYER si tests son ok---
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Droplet
+    needs: test  # <-- S'exécute seulement si le job "test" réussit
+
+    # On déploie que si c'est un push sur main
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+    - name: Deploy to Droplet
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.DROPLET_HOST }}
+        username: ${{ secrets.DROPLET_USERNAME }}
+        key: ${{ secrets.DROPLET_SSH_KEY }}
+        port: 22
+        script: |
+          echo "Connexion au serveur"
+          cd /var/www/laravel
+
+          echo "Mode maintenance ON"
+          php artisan down
+
+          git pull origin main
+
+          # Important: --no-dev pour ne pas installer les libs de debug .
+          composer install --no-dev --optimize-autoloader
+
+          npm install
+
+          npm run build
+
+          php artisan migrate --force
+
+          php artisan optimize:clear
+          php artisan optimize
+
+          echo "Redémarrage du worker Pusher..."
+          sudo supervisorctl restart laravel-worker:*
+
+          echo "Mode maintenance OFF"
+          php artisan up
+
+          echo "Déploiement terminé avec succès !"
