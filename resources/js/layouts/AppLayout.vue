@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
 import { usePage } from '@inertiajs/vue3'
-import { toast } from 'vue-sonner'
+// import { toast } from 'vue-sonner' // Désactivé : notifications toast retirées
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue'
 import type { BreadcrumbItemType } from '@/types'
 import { Toaster } from 'vue-sonner'
@@ -33,10 +33,11 @@ onMounted(() => {
             const isOnConversation = currentUrl.includes(`/conversations/${event.message.conversation_id}`)
 
             if (!isOnConversation) {
-                toast.info(`Nouveau message de ${event.message.user.name}`, {
-                    description: event.message.content.substring(0, 100) + (event.message.content.length > 100 ? '...' : ''),
-                    duration: 5000,
-                })
+                // Notification toast désactivée
+                // toast.info(`Nouveau message de ${event.message.user.name}`, {
+                //     description: event.message.content.substring(0, 100) + (event.message.content.length > 100 ? '...' : ''),
+                //     duration: 5000,
+                // })
             }
         })
         .error((error: any) => {

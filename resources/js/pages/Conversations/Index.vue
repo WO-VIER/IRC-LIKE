@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
-import { toast } from 'vue-sonner'
+// import { toast } from 'vue-sonner' // Désactivé : notifications toast retirées
 import AppLayout from '@/layouts/AppLayout.vue'
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -92,11 +92,11 @@ onMounted(() => {
                 if (event.message.user.id !== userId && !isOnThisConversation) {
                     conversation.unread_count = (conversation.unread_count || 0) + 1
 
-                    // ✅ Afficher une notification toast pour les messages des autres conversations
-                    toast.success(`Nouveau message de ${event.message.user.name}`, {
-                        description: event.message.content.substring(0, 100) + (event.message.content.length > 100 ? '...' : ''),
-                        duration: 4000,
-                    })
+                    // Notification toast désactivée
+                    // toast.success(`Nouveau message de ${event.message.user.name}`, {
+                    //     description: event.message.content.substring(0, 100) + (event.message.content.length > 100 ? '...' : ''),
+                    //     duration: 4000,
+                    // })
                 }
 
                 localConversations.value.splice(conversationIndex, 1)

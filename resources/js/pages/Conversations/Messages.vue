@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Head, router, useForm, usePage } from '@inertiajs/vue3'
-import { toast } from 'vue-sonner'
+// import { toast } from 'vue-sonner' // Désactivé : notifications toast retirées
 import AppLayout from '@/layouts/AppLayout.vue'
 import ConversationSidebar from '@/components/ConversationSidebar.vue'
 import { useUnreadMessages } from '@/composables/useUnreadMessages'
@@ -190,11 +190,11 @@ onMounted(() => {
                 scrollToBottom()
 
                 if (event.message.user.id !== currentUser.value?.id) {
-                    // ✅ Afficher la notification IMMÉDIATEMENT
-                    toast.success(`Nouveau message de ${event.message.user.name}`, {
-                        description: event.message.content.substring(0, 100) + (event.message.content.length > 100 ? '...' : ''),
-                        duration: 4000,
-                    })
+                    // Notification toast désactivée
+                    // toast.success(`Nouveau message de ${event.message.user.name}`, {
+                    //     description: event.message.content.substring(0, 100) + (event.message.content.length > 100 ? '...' : ''),
+                    //     duration: 4000,
+                    // })
 
                     fetch(`/conversations/${props.conversation.id}/mark-as-read`, {
                         method: 'POST',

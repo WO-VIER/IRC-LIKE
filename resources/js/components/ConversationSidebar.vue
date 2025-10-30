@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
-import { toast } from 'vue-sonner'
+// import { toast } from 'vue-sonner' // Désactivé : notifications toast retirées
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -151,11 +151,11 @@ onMounted(() => {
 
             // Si on est PAS dans cette conversation et que ce n'est pas notre message
             if (!isOnThisConversation && event.message.user.id !== userId) {
-                // Afficher une notification toast
-                toast.success(`Nouveau message de ${event.message.user.name}`, {
-                    description: event.message.content.substring(0, 100) + (event.message.content.length > 100 ? '...' : ''),
-                    duration: 4000,
-                })
+                // Notification toast désactivée
+                // toast.success(`Nouveau message de ${event.message.user.name}`, {
+                //     description: event.message.content.substring(0, 100) + (event.message.content.length > 100 ? '...' : ''),
+                //     duration: 4000,
+                // })
 
                 // Recharger la liste des conversations pour mettre à jour le badge et last_message
                 setTimeout(() => {
