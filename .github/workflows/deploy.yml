@@ -82,8 +82,13 @@ jobs:
         key: ${{ secrets.DROPLET_SSH_KEY }}
         port: 22
         script: |
+          set -e # ### AJOUTE ÇA ### (arrête le script s'il y a une erreur)
+          
           echo "Connexion au serveur"
           cd /var/www/laravel
+          
+          # (pour fixer l'erreur "dubious ownership")
+          git config --global --add safe.directory /var/www/laravel
 
           echo "Mode maintenance ON"
           php artisan down
