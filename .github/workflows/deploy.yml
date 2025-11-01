@@ -98,7 +98,7 @@ jobs:
           # Important: --no-dev pour ne pas installer les libs de debug .
           composer install --no-dev --optimize-autoloader
 
-          npm install
+          npm ci
 
           npm run build
 
