@@ -1,6 +1,6 @@
 #  IRC-LIKE
 
-Un projet de chat en temps réel (type IRC) construit avec Laravel, Inertia.js, et Vue.js.
+Un projet de chat en temps réel construit avec Laravel, Inertia.js, et Vue.js.
 
 ##  Stack Technique
 
